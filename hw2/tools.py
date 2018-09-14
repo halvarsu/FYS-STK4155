@@ -7,16 +7,13 @@ def get_beta_ridge(X,y,symX,lmbd):
     return linalg.inv(symX + lmbd*I) @ X.T @ y
 
 
-def ridge_regression(X,y, lmbd = [1]):
+def ridge_regression(X,y, lmbd = 1.0):
     symX = X.T @ X  # matrix product
 
-    beta_ridge = np.zeros((len(lmbd), symX.shape[0]))
-    yhat = np.zeros((len(lmbd), y.size))
-
-    for i,l in enumerate(lmbd):
-        beta_ridge[i] = get_beta_ridge(X,y,symX,l)
-        yhat[i] = X @ beta_ridge[i]
+    beta_ridge = get_beta_ridge(X,y,symX,lmbd)
+    yhat = X @ beta_ridge
     return yhat, beta_ridge
+
 
 
 def R2_analysis(y,yhat_ridge, lambda_values, log_lambda = True):
