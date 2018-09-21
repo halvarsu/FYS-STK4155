@@ -30,14 +30,12 @@ def contour_plot(regr, N = 400):
     plt.xlabel('x')
     plt.ylabel('y')
     cax.set_label('Error')
-    return fig, zerr
+    return fig
 
 
-def plot_data_3D(x,y,z,regr):
+def plot_data_3D(x,y,z,zhat,beta):
     """Accepts raw data and fitted Regression object, and plots the fitted data regr.zhat 
     with deviations from the observed data z, over a mesh of the original Franke function"""
-    zhat = regr.yhat
-    beta = regr.beta
     
     plt.rcParams.update({'font.size': 13})
     fig = plt.figure(figsize = [10,6])
