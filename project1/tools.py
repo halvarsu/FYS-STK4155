@@ -4,6 +4,16 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy import linalg
 
+def generate_data(N = 1000):
+    np.random.seed(1234567890)
+
+    x = np.random.random(size = N)
+    y = np.random.random(size = N)
+    noise = 0.01
+    from franke import FrankeFunction
+    z = FrankeFunction(x,y) + np.random.normal(0,noise,size = x.size)
+    return x,y,z, noise
+
 class Regression(object):
 
     """Simple tool for linear, ridge or lasso regression."""
@@ -193,3 +203,4 @@ def bootstrap(x, y, z, k = 2, lmbd=0):
         x = np.roll(x, chunk_size)
         y = np.roll(y, chunk_size)
         z = np.roll(z, chunk_size)
+
