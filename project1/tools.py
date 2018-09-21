@@ -32,7 +32,7 @@ class Regression(object):
             return self._beta
         except AttributeError:
             N = self._symX.shape[0]
-            self._beta = linalg.inv(self._symX - self._lmbd*np.eye(N)) @ self._X.T @ self._y
+            self._beta = linalg.inv(self._symX + self._lmbd*np.eye(N)) @ self._X.T @ self._y
             return self._beta
 
     @property
@@ -204,3 +204,14 @@ def bootstrap(x, y, z, k = 2, lmbd=0):
         y = np.roll(y, chunk_size)
         z = np.roll(z, chunk_size)
 
+def print_beta(beta, deg = 5):
+    i = 0
+    for n in range(deg+1):
+        for m in range(deg+1-n):
+            if np.abs(beta[i]) > 0:
+                x_str = f"x^{n}" if n else ""
+                y_str = f"y^{m}" if m else ""
+                c_str = x_str + " "  + y_str if (x_str or y_str) else "c"
+
+                print("{:>7}: {:5.2f}".format(c_str, beta[i]))
+            i+=1
