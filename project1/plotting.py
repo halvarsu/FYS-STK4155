@@ -3,33 +3,45 @@ import matplotlib.pyplot as plt
 import tools
 from franke import FrankeFunction, FrankePlot
 
+def contour_plot(regr, N = 400, plot_err = True):
+    if plot_err:
+        fig, axes = plt.subplots(1,2, figsize=[11,5])
+    else:
+        fig, ax = plt.subplots(1,figsize=[6,5])
+        axes = [ax]
 
-def contour_plot(regr, N = 400):
-    fig = plt.figure(figsize=[6,5])
     xlin = np.linspace(0,1,N)
     ylin = np.linspace(0,1,N)
     xmesh,ymesh = np.meshgrid(xlin,ylin)
     zmesh = FrankeFunction(xmesh,ymesh)
 
     # plt.pcolormesh(x,y,z)
-    plt.contour(xmesh,ymesh,zmesh)
-    plt.axis('equal')
-    plt.axis([0,1,0,1])
+    for ax in axes:
+        ax.contour(xmesh,ymesh,zmesh)
+        ax.axis('equal')
+        ax.axis([0,1,0,1])
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
 
     zlin = zmesh.ravel()
 
     X = tools.get_X_poly2D(xmesh.ravel(), ymesh.ravel(), deg = 5)
     zhat = regr.predict(X)
 
-    zerr = zmesh - zhat.reshape(N,N)
-    shift = 1 - np.max(zerr)/(np.max(zerr) - np.min(zerr))
-    shifted_cmap = tools.shiftedColorMap(plt.cm.coolwarm, midpoint= shift , name='shifted')
+    m = axes[0].imshow(zhat.reshape(N,N), extent=[0,1,0,1], origin='lower')
+    cax = plt.colorbar(m, ax=axes[0])
+    cax.set_label('Z-value')
+
+    if plot_err:
+        zerr = zmesh - zhat.reshape(N,N)
+        shift = 1 - np.max(zerr)/(np.max(zerr) - np.min(zerr))
+        shifted_cmap = tools.shiftedColorMap(plt.cm.coolwarm, midpoint= shift , name='shifted')
     
-    m = plt.pcolormesh(xmesh,ymesh, zerr, cmap = shifted_cmap)
-    cax = plt.colorbar(m)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    cax.set_label('Error')
+        m = axes[1].imshow(zerr, cmap = shifted_cmap,
+                extent=[0,1,0,1], origin='lower')
+        cax = plt.colorbar(m, ax=axes[1])
+        cax.set_label('Error')
+    fig.tight_layout()
     return fig
 
 
@@ -55,17 +67,11 @@ def plot_data_3D(x,y,z,zhat,beta):
     ax = FrankePlot(ax)
     ax.view_init(30, 60)
 
-def plot_covar(regr, deg=5, print_beta = False): 
+def plot_covar(regr, deg=5): 
     """Takes in a fitted Regression object and plots the covariance matrix."""
     beta = regr.beta
     std_beta = np.sqrt(np.diag(regr.betaVar))
     i = 0
-
-    if print_beta:
-        for n in range(deg+1):
-            for m in range(deg+1-n):
-                print(f"x**{n} y**{m}  {beta[i]:5.2f} +- {std_beta[i]:5.2f}")
-                i+=1
 
     fig, ax = plt.subplots(1)
     m = ax.imshow(regr.betaVar, origin='upper')
