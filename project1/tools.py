@@ -204,14 +204,22 @@ def bootstrap(x, y, z, k = 2, lmbd=0):
         y = np.roll(y, chunk_size)
         z = np.roll(z, chunk_size)
 
-def print_beta(beta, deg = 5):
+def get_exp_coeffs(beta, deg = 5, print_beta=True):
     i = 0
+    exps = {}
     for n in range(deg+1):
         for m in range(deg+1-n):
-            if np.abs(beta[i]) > 0:
+            if print_beta and (np.abs(beta[i]) > 0):
                 x_str = f"x^{n}" if n else ""
                 y_str = f"y^{m}" if m else ""
                 c_str = x_str + " "  + y_str if (x_str or y_str) else "c"
 
                 print("{:>7}: {:5.2f}".format(c_str, beta[i]))
+            exps[(n,m)] = beta[i] 
             i+=1
+    import pandas as pd
+    df = pd.Series(exps).unstack()
+    df.columns.name = 'y_exponent'
+    df.index.name = 'x_exponent'
+    return df
+
