@@ -47,8 +47,8 @@ class Regression(object):
     def betaVar(self):
         return self._symXInv * self.sigma_y
 
-    def R2Score(self):
-        return R2Score(self._y, self.yhat)
+    def r2score(self):
+        return r2score(self._y, self.yhat)
 
     def squared_error(self):
         return squared_error(self._y, self.yhat)
@@ -61,7 +61,7 @@ def squared_error(y, yhat):
     return 1/n*np.sum((y-yhat)**2)
 
 
-def R2Score(y, yhat):
+def r2score(y, yhat):
     n = y.size
     ymean = np.mean(y)
     return 1 - (np.sum((y-yhat)**2)/np.sum((y-ymean)**2))
@@ -132,3 +132,64 @@ def fit_poly2D(x,y,z, deg = 5, lmbd = 0):
     X = get_X_poly2D(x,y,deg)
     regr = Regression(X,z, lmbd = lmbd)
     return regr
+
+
+def k_fold_val(x, y, z, k = 2, lmbd=0):
+    """k_fold validation method on ridge regression. lmbd = 0 gives linear
+    regression."""
+    N = x.size
+    if N%k:
+        raise ValueError('N must be divisible by k')
+    chunk_size = int(N/k)
+    
+    r2 = []
+    se = []
+    # print("R2score, Squared error ")
+    for i in range(k):
+        x_test = x[:chunk_size]
+        y_test = y[:chunk_size]
+        z_test = z[:chunk_size]
+        x_train = x[chunk_size:]
+        y_train = y[chunk_size:]
+        z_train = z[chunk_size:]
+        
+        regr = fit_poly2D(x_train, y_train, z_train)
+        X_test = get_X_poly2D(x_test, y_test, deg =5)
+        z_pred = regr.predict(X_test)
+        r2.append(r2score(z_test, z_pred))
+        se.append(squared_error(z_test, z_pred))
+
+        # print("{:6.3f}  {:6.3f}".format(r2[i], se[i]), )
+        
+        x = np.roll(x, chunk_size)
+        y = np.roll(y, chunk_size)
+        z = np.roll(z, chunk_size)
+    return r2,se
+        
+def bootstrap(x, y, z, k = 2, lmbd=0):
+    """WIP"""
+    N = x.size
+    if N%k:
+        raise ValueError('N must be divisible by k')
+    chunk_size = int(N/k)
+    indexes = np.arange(N)
+    
+    for i in range(k):
+        x_test = x[:chunk_size]
+        y_test = y[:chunk_size]
+        z_test = z[:chunk_size]
+        x_train = x[chunk_size:]
+        y_train = y[chunk_size:]
+        z_train = z[chunk_size:]
+        print(x_test.size, x_train.size)
+        
+        regr = fit_poly2D(x_train, y_train, z_train)
+        X_test = get_X_poly2D(x_test, y_test, deg =5)
+        z_pred = regr.predict(X_test)
+        
+        print(f"train  {regr.r2score():6.3f}  {regr.squared_error():6.3f}", )
+        print(f"test   {tools.r2score(z_test,z_pred):6.3f}  {tools.squared_error(z_test, z_pred):6.3f}", )
+        
+        x = np.roll(x, chunk_size)
+        y = np.roll(y, chunk_size)
+        z = np.roll(z, chunk_size)
