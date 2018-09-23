@@ -147,16 +147,29 @@ def fit_poly2D(x,y,z, deg = 5, lmbd = 0):
 
 def k_fold_val(x, y, z, k = 2, lmbd=0):
     """k_fold validation method on ridge regression. lmbd = 0 gives linear
-    regression."""
+    regression.
+    
+    Returns
+    -------
+
+    r2_train, mse_train : np arrays
+        R2-score and Mean Squared Error in-sample.
+
+    r2_test, mse_test : np arrays
+        R2-score and Mean Squared Error out-of-sample.
+    """
     N = x.size
     if N%k:
         raise ValueError('N must be divisible by k')
     chunk_size = int(N/k)
     
-    r2 = []
-    se = []
+    r2_test = []
+    mse_test = []
+    r2_train = []
+    mse_train = []
     # print("R2score, Squared error ")
     for i in range(k):
+        # But it is the same every time?! No, see rolling at end of loop
         x_test = x[:chunk_size]
         y_test = y[:chunk_size]
         z_test = z[:chunk_size]
@@ -165,17 +178,20 @@ def k_fold_val(x, y, z, k = 2, lmbd=0):
         z_train = z[chunk_size:]
         
         regr = fit_poly2D(x_train, y_train, z_train)
-        X_test = get_X_poly2D(x_test, y_test, deg =5)
-        z_pred = regr.predict(X_test)
-        r2.append(r2score(z_test, z_pred))
-        se.append(squared_error(z_test, z_pred))
+        design_test = get_X_poly2D(x_test, y_test, deg =5)
+        z_pred = regr.predict(design_test)
+
+        r2_train.append(r2score(z_test, z_pred))
+        mse_train.append(squared_error(z_test, z_pred))
+        r2_test.append(regr.r2score())
+        mse_test.append(regr.squared_error())
 
         # print("{:6.3f}  {:6.3f}".format(r2[i], se[i]), )
         
         x = np.roll(x, chunk_size)
         y = np.roll(y, chunk_size)
         z = np.roll(z, chunk_size)
-    return r2,se
+    return r2_train,mse_train, r2_test, mse_test
         
 def bootstrap(x, y, z, k = 2, lmbd=0):
     """WIP"""
