@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy import linalg
 
-def generate_data(N = 1000):
-    np.random.seed(1234567890)
+def generate_data(N = 1000, seed = None):
+    if not seed is None:
+        np.random.seed(seed)
 
     x = np.random.random(size = N)
     y = np.random.random(size = N)
