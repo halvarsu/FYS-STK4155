@@ -159,8 +159,8 @@ def k_fold_val(x, y, z, k = 2, lmbd=0):
         R2-score and Mean Squared Error out-of-sample.
     """
     N = x.size
-    if N%k:
-        raise ValueError('N must be divisible by k')
+    # if N%k:
+        # raise ValueError('N must be divisible by k')
     chunk_size = int(N/k)
     
     r2_test = []
@@ -176,8 +176,9 @@ def k_fold_val(x, y, z, k = 2, lmbd=0):
         x_train = x[chunk_size:]
         y_train = y[chunk_size:]
         z_train = z[chunk_size:]
+        print(x_test.shape, x_train.shape)
         
-        regr = fit_poly2D(x_train, y_train, z_train)
+        regr = fit_poly2D(x_train, y_train, z_train, lmbd = lmbd)
         design_test = get_X_poly2D(x_test, y_test, deg =5)
         z_pred = regr.predict(design_test)
 
