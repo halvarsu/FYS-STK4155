@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy import linalg
 
-def generate_data(N = 1000, seed = None):
+def generate_data(N = 1000, seed = None, noise = 0.01):
     if not seed is None:
         np.random.seed(seed)
 
     x = np.random.random(size = N)
     y = np.random.random(size = N)
-    noise = 0.01
+    
     from franke import FrankeFunction
     z = FrankeFunction(x,y) + np.random.normal(0,noise,size = x.size)
     return x,y,z, noise
