@@ -194,7 +194,7 @@ def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
         design_train = get_X_poly2D(x_train, y_train, deg =5)
         design_test = get_X_poly2D(x_test, y_test, deg =5)
 
-        if method == 'OLS' or method == 'Ridge':
+        if method.lower() == 'ols' or method.lower() == 'ridge':
             regr = Regression(design_train,z_train, lmbd = lmbd)
         else:
             regr = Lasso( alpha = lmbd ,fit_intercept = False)
