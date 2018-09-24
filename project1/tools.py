@@ -145,9 +145,10 @@ def fit_poly2D(x,y,z, deg = 5, lmbd = 0):
     return regr
 
 
-def k_fold_val(x, y, z, k = 2, lmbd=0):
-    """k_fold validation method on ridge regression. lmbd = 0 gives linear
-    regression.
+def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
+        return_average = True):
+    """k_fold validation method on regression methods. method must be one
+    of OLS, Ridge or Lasso. lmbd = 0 assumed for OLS.
     
     Returns
     -------
@@ -161,38 +162,64 @@ def k_fold_val(x, y, z, k = 2, lmbd=0):
     N = x.size
     # if N%k:
         # raise ValueError('N must be divisible by k')
-    chunk_size = int(N/k)
+    if method.lower() not in ['ols','ridge','lasso']:
+        raise ValueError('Invalid method flag, {}'.format(method))
+    if method.lower() == 'ols' and lmbd != 0:
+        raise ValueError('lmbd != 0 does not make sense for OLS.')
+    if method.lower() == 'lasso':
+        from sklearn.linear_model import Lasso
+
+
+    # chunk_size = int(N/k)
+    N = x.size
+    indexes = np.linspace(0,N,k+1, dtype = int)
+    sizes = np.diff(indexes)
     
     r2_test = []
     mse_test = []
     r2_train = []
     mse_train = []
     # print("R2score, Squared error ")
-    for i in range(k):
+    for size in sizes:
         # But it is the same every time?! No, see rolling at end of loop
-        x_test = x[:chunk_size]
-        y_test = y[:chunk_size]
-        z_test = z[:chunk_size]
-        x_train = x[chunk_size:]
-        y_train = y[chunk_size:]
-        z_train = z[chunk_size:]
-        print(x_test.shape, x_train.shape)
+        x_test = x[:size]
+        y_test = y[:size]
+        z_test = z[:size]
+        x_train = x[size:]
+        y_train = y[size:]
+        z_train = z[size:]
+        # print(x_test.shape, x_train.shape)
+        # print(x_train.shape, x_test.shape)
         
-        regr = fit_poly2D(x_train, y_train, z_train, lmbd = lmbd)
+        design_train = get_X_poly2D(x_train, y_train, deg =5)
         design_test = get_X_poly2D(x_test, y_test, deg =5)
-        z_pred = regr.predict(design_test)
 
-        r2_train.append(r2score(z_test, z_pred))
-        mse_train.append(squared_error(z_test, z_pred))
-        r2_test.append(regr.r2score())
-        mse_test.append(regr.squared_error())
+        if method == 'OLS' or method == 'Ridge':
+            regr = Regression(design_train,z_train, lmbd = lmbd)
+        else:
+            regr = Lasso( alpha = lmbd ,fit_intercept = False)
+            regr.fit(design_train, z_train)
+
+        z_pred_test = regr.predict(design_test)
+        z_pred_train = regr.predict(design_train)
+
+        r2_test.append(r2score(z_test, z_pred_test))
+        mse_test.append(squared_error(z_test, z_pred_test))
+        r2_train.append(r2score(z_train, z_pred_train))
+        mse_train.append(squared_error(z_train,z_pred_train))
 
         # print("{:6.3f}  {:6.3f}".format(r2[i], se[i]), )
         
-        x = np.roll(x, chunk_size)
-        y = np.roll(y, chunk_size)
-        z = np.roll(z, chunk_size)
-    return r2_train,mse_train, r2_test, mse_test
+        x = np.roll(x, - size)
+        y = np.roll(y, - size)
+        z = np.roll(z, - size)
+
+    if return_average:
+        return [np.average(v) for v in [r2_train,mse_train, 
+                                       r2_test, mse_test]]
+    else:
+        return r2_train,mse_train, r2_test, mse_test
+    
         
 def bootstrap(x, y, z, k = 2, lmbd=0):
     """WIP"""
