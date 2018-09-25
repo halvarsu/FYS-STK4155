@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy import linalg
+from franke import FrankeFunction
 
 def generate_data(N = 1000, seed = None, noise = 0.01):
     if not seed is None:
@@ -11,7 +12,6 @@ def generate_data(N = 1000, seed = None, noise = 0.01):
     x = np.random.random(size = N)
     y = np.random.random(size = N)
     
-    from franke import FrankeFunction
     z = FrankeFunction(x,y) + np.random.normal(0,noise,size = x.size)
     return x,y,z, noise
 
@@ -148,7 +148,7 @@ def fit_poly2D(x,y,z, deg = 5, lmbd = 0):
 
 
 def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
-        return_average = True):
+        return_average = True, compare_ground_truth=False):
     """k_fold validation method on regression methods. method must be one
     of OLS, Ridge or Lasso. lmbd = 0 assumed for OLS.
     
@@ -186,7 +186,11 @@ def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
         # But it is the same every time?! No, see rolling at end of loop
         x_test = x[:size]
         y_test = y[:size]
-        z_test = z[:size]
+        if compare_ground_truth:
+            z_test = FrankeFunction(x_test,y_test)   
+        else:
+            z_test = z[:size]
+
         x_train = x[size:]
         y_train = y[size:]
         z_train = z[size:]
