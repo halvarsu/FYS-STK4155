@@ -21,6 +21,8 @@ class Regression(object):
 
     def __init__(self, X, y, lmbd = 0):
         """TODO: to be defined1. """
+        if X.shape[0] != y.shape[0]:
+            raise ValueError('y-dim must equal number of rows in design matrix')
         self._X = X
         self._y = y
         self._symX = self._X.T @ self._X
@@ -188,7 +190,7 @@ def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
         x_train = x[size:]
         y_train = y[size:]
         z_train = z[size:]
-        # print(x_test.shape, x_train.shape)
+    
         # print(x_train.shape, x_test.shape)
         
         design_train = get_X_poly2D(x_train, y_train, deg =5)
@@ -223,7 +225,7 @@ def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
         
 def bootstrap(x, y, z, k = 2, lmbd=0):
     """WIP"""
-    N = x.size
+    c = x.size
     if N%k:
         raise ValueError('N must be divisible by k')
     chunk_size = int(N/k)
@@ -268,3 +270,60 @@ def get_exp_coeffs(beta, deg = 5, print_beta=True):
     df.index.name = 'x_exponent'
     return df
 
+def bootstrap(x,y,z, rep=50, smplsize = 50):
+    MSE = np.zeros((rep,))
+    
+    indx = np.arange(x.size)
+    for r in range(rep):
+        rnd1 = np.random.choice(indx, size = smplsize)
+        uniq =  np.unique(rnd1)
+        
+        train_x = x[rnd1]
+        train_y = y[rnd1]
+        train_z = z[rnd1]
+
+        mask = np.zeros_like(x, dtype=bool)
+        mask[uniq] = True
+        test_x = x[~mask]
+        test_y = y[~mask]
+        test_z = z[~mask]
+
+        X_train = tools.get_X_poly2D(train_x,train_y, deg=5)
+        X_test = tools.get_X_poly2D(test_x,test_y, deg=5)
+        
+        regr = tools.Regression(X_train, train_z)
+        z_pred = regr.predict(X_test)
+        MSE[r] = tools.squared_error(z_pred, test_z)
+        
+    return MSE
+
+def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5):
+    points = np.zeros((rep,))
+    
+    indx = np.arange(x.size)
+    for r in range(rep):
+        rnd1 = np.random.choice(indx, size = x.size)
+        uniq =  np.unique(rnd1)
+        
+        train_x = x[rnd1]
+        train_y = y[rnd1]
+        train_z = z[rnd1]
+
+        mask = np.zeros_like(x, dtype=bool)
+        mask[uniq] = True
+
+        X_train = tools.get_X_poly2D(train_x,train_y, deg=deg)
+        X_test = tools.get_X_poly2D(np.array([x0]),np.array([y0]), deg=deg)
+        
+        regr = tools.Regression(X_train, train_z, lmbd=0.1)
+        z_pred = regr.predict(X_test)
+        points[r] = z_pred
+        
+    return points
+
+def bias_var_decomposition(points,x0,y0):
+    z0 = FrankeFunction(x0,y0)
+    var = np.var(points) #squared
+    err = np.mean((points-z0)**2) #squared
+    bias = err-noise**2-var #squared
+    return np.sqrt(err),np.sqrt(var),np.sqrt(bias)
