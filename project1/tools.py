@@ -53,8 +53,8 @@ class Regression(object):
     @property
     def sigma_y(self):
         N = self._y.size
-        n = self._symX.shape[0]
-        return 1/(N-n) * np.sum((self._y-self.yhat)**2)
+        p = self._symX.shape[0]
+        return 1/(N-p-1) * np.sum((self._y-self.yhat)**2)
         
     @property
     def betaVar(self):
