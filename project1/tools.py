@@ -80,6 +80,22 @@ def r2score(y, yhat):
     return 1 - (np.sum((y-yhat)**2)/np.sum((y-ymean)**2))
 
 
+def fit_regr(design_train, z_train, N = 10,noise = 0.1,method = 'ols', lmbd = None):
+    """Helper function for looping over methods with standard values for lmbd"""
+    method = method.lower()
+    
+    if method == 'ols':
+        lmbd = lmbd or 0
+        regr = tools.Regression(design_train,z_train, lmbd = 0.0)
+    elif method == 'ridge':
+        lmbd = lmbd or 0.5
+        regr = tools.Regression(design_train,z_train, lmbd = lmbd)
+    else:
+        lmbd = lmbd or 0.001
+        regr = Lasso(alpha = lmbd, fit_intercept = False)
+        regr.fit(design_train, z_train)
+    return regr
+
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
@@ -141,13 +157,9 @@ def get_X_poly2D(x,y,deg):
     X = np.array(X).T
     return X
 
-def fit_poly2D(x,y,z, deg = 5, lmbd = 0):
-    X = get_X_poly2D(x,y,deg)
-    regr = Regression(X,z, lmbd = lmbd)
-    return regr
 
 
-def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
+def k_fold_val(x, y, z, k = 2, deg= 5, lmbd=0, method = 'ridge',
         return_average = True, compare_ground_truth=False):
     """k_fold validation method on regression methods. method must be one
     of OLS, Ridge or Lasso. lmbd = 0 assumed for OLS.
@@ -197,8 +209,8 @@ def k_fold_val(x, y, z, k = 2, lmbd=0, method = 'ridge',
     
         # print(x_train.shape, x_test.shape)
         
-        design_train = get_X_poly2D(x_train, y_train, deg =5)
-        design_test = get_X_poly2D(x_test, y_test, deg =5)
+        design_train = get_X_poly2D(x_train, y_train, deg =deg)
+        design_test = get_X_poly2D(x_test, y_test, deg =deg)
 
         if method.lower() == 'ols' or method.lower() == 'ridge':
             regr = Regression(design_train,z_train, lmbd = lmbd)
