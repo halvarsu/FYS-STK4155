@@ -6,7 +6,7 @@ from matplotlib import cm
 
 import tools
 
-def terrain_data(file, lambd, deg):
+def load_terrain_data(file):
     data = imread(file)
     n,m = data.shape
 
@@ -14,13 +14,19 @@ def terrain_data(file, lambd, deg):
     ylin = np.linspace(0,1,m)
 
     x,y = np.meshgrid(xlin,ylin)
+    return x,y,data
 
-    x = x.reshape(-1,1)
-    y = y.reshape(-1,1)
+def fit_terrain_data(file, lambd, deg):
+    """
+    
+    """
+
+    x, y, data = load_terrain_data(file)
+    x = x.ravel()
+    y = y.ravel()
+    z = data.ravel()
 
     X = tools.get_X_poly2D(x,y,deg=deg)
-    X = X[0][:][:]
-    z = data.flatten()
     
     regr = tools.Regression(X,z, lmbd = lambd)
     beta = regr.beta
@@ -32,9 +38,9 @@ def terrain_data(file, lambd, deg):
     print('MSE', mse)
     print('R2', r2)
     
-    return zpred,data
+    return zpred.reshape(data.shape[::-1]), data
 
-def plot_terrain(data, z):
+def plot_terrain(data):
     m,n = data.shape
 
     xmesh = np.arange(n)
@@ -42,9 +48,19 @@ def plot_terrain(data, z):
 
     [x,y] = np.meshgrid(xmesh, ymesh)
     
-    zshape = z.reshape(data.shape)
     
     fig = plt.figure()
-    ax = fig.add_subplot(1,1,1,projection='3d')
-    ax.plot_surface(x,y,zshape,cmap=cm.viridis,linewidth=0)
+    ax = fig.add_subplot(111,projection='3d')
+    ax.plot_surface(x,y,data,cmap=cm.viridis,linewidth=0)
+
+    # ax = fig.add_subplot(212)
+    # ax.pcolormesh(x,y,data,cmap=cm.viridis,linewidth=0)
     plt.show()
+
+if __name__ == "__main__":
+    file = 'data/n59_e010_1arc_v3.tif'
+    lambd = 0.01
+    deg = 5
+
+    zpred, data = fit_terrain_data(file, lambd, deg)
+    plot_terrain(zpred.reshape(data.shape))
