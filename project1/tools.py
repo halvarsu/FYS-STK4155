@@ -162,21 +162,32 @@ def get_X_poly2D(x,y,deg):
     X = np.array(X).T
     return X
 
+def default_stat(regr, z_test, z_train, design_test,
+        design_train):
+    """Default statistic function for k-fold validation"""
+    z_pred_test = regr.predict(design_test)
+    z_pred_train = regr.predict(design_train)
+
+    r2_test   = r2score(z_test, z_pred_test)
+    r2_train  = r2score(z_train, z_pred_train)
+    mse_test  = squared_error(z_test, z_pred_test)
+    mse_train = squared_error(z_train,z_pred_train)
+    return r2_train, mse_train, r2_test, mse_test
 
 
-def k_fold_val(x, y, z, k = 2, deg= 5, lmbd=0, method = 'ridge',
-        return_average = True, compare_ground_truth=False):
-    """k_fold validation method on regression methods. method must be one
-    of OLS, Ridge or Lasso. lmbd = 0 assumed for OLS.
+def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
+        k = 2, deg= 5, lmbd=0,  method = 'ridge', compare_ground_truth=False):
+    """k-fold validation method on regression methods, calculating some
+    statistic given by statistic_func, which takes in the regression object,
+    z-data for test and train and design-matrices for test and train.
+    'method' must be one of OLS, Ridge or Lasso. 'lmbd = 0' assumed for
+    OLS. 
     
     Returns
     -------
 
-    r2_train, mse_train : np arrays
-        R2-score and Mean Squared Error in-sample.
+    output : numpy array of output from output_func
 
-    r2_test, mse_test : np arrays
-        R2-score and Mean Squared Error out-of-sample.
     """
     N = x.size
     # if N%k:
@@ -189,18 +200,15 @@ def k_fold_val(x, y, z, k = 2, deg= 5, lmbd=0, method = 'ridge',
         from sklearn.linear_model import Lasso
 
 
-    # chunk_size = int(N/k)
     N = x.size
     indexes = np.linspace(0,N,k+1, dtype = int)
-    sizes = np.diff(indexes)
+
+    # fold sizes. Might vary with 1
+    sizes = np.diff(indexes) 
     
-    r2_test = []
-    mse_test = []
-    r2_train = []
-    mse_train = []
-    # print("R2score, Squared error ")
+    output = []
     for size in sizes:
-        # But it is the same every time?! No, see rolling at end of loop
+        # We roll at end of loop
         x_test = x[:size]
         y_test = y[:size]
         if compare_ground_truth:
@@ -212,8 +220,6 @@ def k_fold_val(x, y, z, k = 2, deg= 5, lmbd=0, method = 'ridge',
         y_train = y[size:]
         z_train = z[size:]
     
-        # print(x_train.shape, x_test.shape)
-        
         design_train = get_X_poly2D(x_train, y_train, deg =deg)
         design_test = get_X_poly2D(x_test, y_test, deg =deg)
 
@@ -223,54 +229,21 @@ def k_fold_val(x, y, z, k = 2, deg= 5, lmbd=0, method = 'ridge',
             regr = Lasso( alpha = lmbd ,fit_intercept = False)
             regr.fit(design_train, z_train)
 
-        z_pred_test = regr.predict(design_test)
-        z_pred_train = regr.predict(design_train)
-
-        r2_test.append(r2score(z_test, z_pred_test))
-        mse_test.append(squared_error(z_test, z_pred_test))
-        r2_train.append(r2score(z_train, z_pred_train))
-        mse_train.append(squared_error(z_train,z_pred_train))
-
-        # print("{:6.3f}  {:6.3f}".format(r2[i], se[i]), )
+        output.append(statistic_func(regr, z_test, z_train, design_test, design_train))
         
         x = np.roll(x, - size)
         y = np.roll(y, - size)
         z = np.roll(z, - size)
 
+    output = np.array(output) # :(
+
     if return_average:
-        return [np.average(v) for v in [r2_train,mse_train, 
-                                       r2_test, mse_test]]
+        return np.average(output, axis = 0)
     else:
-        return r2_train,mse_train, r2_test, mse_test
+        return output
     
+
         
-def bootstrap(x, y, z, k = 2, lmbd=0):
-    """WIP"""
-    c = x.size
-    if N%k:
-        raise ValueError('N must be divisible by k')
-    chunk_size = int(N/k)
-    indexes = np.arange(N)
-    
-    for i in range(k):
-        x_test = x[:chunk_size]
-        y_test = y[:chunk_size]
-        z_test = z[:chunk_size]
-        x_train = x[chunk_size:]
-        y_train = y[chunk_size:]
-        z_train = z[chunk_size:]
-        print(x_test.size, x_train.size)
-        
-        regr = fit_poly2D(x_train, y_train, z_train)
-        X_test = get_X_poly2D(x_test, y_test, deg =5)
-        z_pred = regr.predict(X_test)
-        
-        print(f"train  {regr.r2score():6.3f}  {regr.squared_error():6.3f}", )
-        print(f"test   {tools.r2score(z_test,z_pred):6.3f}  {tools.squared_error(z_test, z_pred):6.3f}", )
-        
-        x = np.roll(x, chunk_size)
-        y = np.roll(y, chunk_size)
-        z = np.roll(z, chunk_size)
 
 def get_exp_coeffs(beta, deg = 5, print_beta=True):
     i = 0
