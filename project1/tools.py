@@ -51,6 +51,10 @@ class Regression(object):
         return self._symXInv
 
     @property
+    def symX(self):
+        return self._symX
+
+    @property
     def sigma_y(self):
         N = self._y.size
         p = self._symX.shape[0]
