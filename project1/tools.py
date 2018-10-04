@@ -12,7 +12,9 @@ def generate_data(N = 1000, seed = None, noise = 0.01):
     x = np.random.random(size = N)
     y = np.random.random(size = N)
     
-    z = FrankeFunction(x,y) + np.random.normal(0,noise,size = x.size)
+    z = FrankeFunction(x,y) 
+    if noise:
+        z += np.random.normal(0,noise,size = z.size)
     return x,y,z, noise
 
 class Regression(object):
@@ -71,7 +73,7 @@ class Regression(object):
         return squared_error(self._y, self.yhat)
 
     def predict(self, X):
-        return X @ self.beta 
+        return (X @ self.beta ).squeeze()
 
 def squared_error(y, yhat):
     n = y.size
@@ -159,7 +161,7 @@ def get_X_poly2D(x,y,deg):
     for i in range(deg + 1):
         for n in range(i+1):
             X.append(x**n * y**(i-n))
-    X = np.array(X).T
+    X = (np.array(X).T).squeeze()
     return X
 
 def default_stat(regr, z_test, z_train, design_test,
@@ -222,12 +224,12 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
     
         design_train = get_X_poly2D(x_train, y_train, deg =deg)
         design_test = get_X_poly2D(x_test, y_test, deg =deg)
-
-        if method.lower() == 'ols' or method.lower() == 'ridge':
-            regr = Regression(design_train,z_train, lmbd = lmbd)
-        else:
+        
+        if method.lower() == 'lasso':
             regr = Lasso( alpha = lmbd ,fit_intercept = False)
             regr.fit(design_train, z_train)
+        else:
+            regr = Regression(design_train,z_train, lmbd = lmbd)
 
         output.append(statistic_func(regr, z_test, z_train, design_test, design_train))
         
@@ -291,8 +293,14 @@ def bootstrap(x,y,z, rep=50, smplsize = 50):
         
     return MSE
 
-def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5):
-    points = np.zeros((rep,))
+def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5, 
+        lmbd = 0.1, method = 'ridge'):
+    """
+    Uses bootstrap to find the average value of the model at a given
+    point (or points)
+    """
+    from sklearn.linear_model import Lasso
+    points = np.zeros((rep,np.array(x0).size)).squeeze()
     
     indx = np.arange(x.size)
     for r in range(rep):
@@ -306,12 +314,16 @@ def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5):
         mask = np.zeros_like(x, dtype=bool)
         mask[uniq] = True
 
-        X_train = tools.get_X_poly2D(train_x,train_y, deg=deg)
-        X_test = tools.get_X_poly2D(np.array([x0]),np.array([y0]), deg=deg)
+        X_train = get_X_poly2D(train_x,train_y, deg=deg)
+        X_test = get_X_poly2D(np.array([x0]),np.array([y0]), deg=deg)
         
-        regr = tools.Regression(X_train, train_z, lmbd=0.1)
-        z_pred = regr.predict(X_test)
-        points[r] = z_pred
+        if method.lower() == 'lasso':
+            regr = Lasso( alpha = lmbd, fit_intercept = False )
+            regr.fit( X_train, train_z )
+        else:
+            regr = Regression( X_train, train_z, lmbd = lmbd )
+
+        points[r] = regr.predict(X_test)
         
     return points
 
