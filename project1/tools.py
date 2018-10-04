@@ -83,13 +83,14 @@ def r2score(y, yhat):
 def fit_regr(design_train, z_train, N = 10,noise = 0.1,method = 'ols', lmbd = None):
     """Helper function for looping over methods with standard values for lmbd"""
     method = method.lower()
+    from sklearn.linear_model import Lasso
     
     if method == 'ols':
         lmbd = lmbd or 0
-        regr = tools.Regression(design_train,z_train, lmbd = 0.0)
+        regr = Regression(design_train,z_train, lmbd = 0.0)
     elif method == 'ridge':
         lmbd = lmbd or 0.5
-        regr = tools.Regression(design_train,z_train, lmbd = lmbd)
+        regr = Regression(design_train,z_train, lmbd = lmbd)
     else:
         lmbd = lmbd or 0.001
         regr = Lasso(alpha = lmbd, fit_intercept = False)
