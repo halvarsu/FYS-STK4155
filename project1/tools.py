@@ -266,7 +266,14 @@ def get_exp_coeffs(beta, deg = 5, print_beta=True):
     df.index.name = 'x_exponent'
     return df
 
-def bootstrap(x,y,z, rep=50, smplsize = 50, r2_score = False):
+def bootstrap(x,y,z, lmbd = 0, method = 'ols',rep=50, smplsize = 50, r2_score = False):
+    if method.lower() not in ['ols','ridge','lasso']:
+        raise ValueError('Invalid method flag, {}'.format(method))
+    if method.lower() == 'ols' and lmbd != 0:
+        raise ValueError('lmbd != 0 does not make sense for OLS.')
+    if method.lower() == 'lasso':
+        from sklearn.linear_model import Lasso
+
     MSE = np.zeros((rep,))
     if r2_score:
         R2 = np.zeros((rep,))    
@@ -289,8 +296,17 @@ def bootstrap(x,y,z, rep=50, smplsize = 50, r2_score = False):
         X_train = get_X_poly2D(train_x,train_y, deg=5)
         X_test = get_X_poly2D(test_x,test_y, deg=5)
         
-        regr = Regression(X_train, train_z)
-        z_pred = regr.predict(X_test)
+        if method.lower() == 'lasso':
+            regr = Lasso( alpha = lmbd ,fit_intercept = False)
+            regr.fit(X_train, train_z)
+            z_pred = regr.predict(X_test)
+        if method.lower() == 'ols':
+            regr = Regression(X_train, train_z)
+            z_pred = regr.predict(X_test)
+        if method.lower() == 'ridge':
+            regr = Regression(X_train, train_z, lmbd=lmbd)
+            z_pred = regr.predict(X_test)
+        
         MSE[r] = squared_error(z_pred, test_z)
         if r2_score:
             R2[r] = r2score(z_pred,test_z)
