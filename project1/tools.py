@@ -266,9 +266,11 @@ def get_exp_coeffs(beta, deg = 5, print_beta=True):
     df.index.name = 'x_exponent'
     return df
 
-def bootstrap(x,y,z, rep=50, smplsize = 50):
+def bootstrap(x,y,z, rep=50, smplsize = 50, r2_score = False):
     MSE = np.zeros((rep,))
-    
+    if r2_score:
+        R2 = np.zeros((rep,))    
+
     indx = np.arange(x.size)
     for r in range(rep):
         rnd1 = np.random.choice(indx, size = smplsize)
@@ -284,14 +286,19 @@ def bootstrap(x,y,z, rep=50, smplsize = 50):
         test_y = y[~mask]
         test_z = z[~mask]
 
-        X_train = tools.get_X_poly2D(train_x,train_y, deg=5)
-        X_test = tools.get_X_poly2D(test_x,test_y, deg=5)
+        X_train = get_X_poly2D(train_x,train_y, deg=5)
+        X_test = get_X_poly2D(test_x,test_y, deg=5)
         
-        regr = tools.Regression(X_train, train_z)
+        regr = Regression(X_train, train_z)
         z_pred = regr.predict(X_test)
-        MSE[r] = tools.squared_error(z_pred, test_z)
-        
-    return MSE
+        MSE[r] = squared_error(z_pred, test_z)
+        if r2_score:
+            R2[r] = r2score(z_pred,test_z)
+    
+    if r2_score: 
+        return MSE,R2
+    else:    
+        return MSE
 
 def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5, 
         lmbd = 0.1, method = 'ridge'):
