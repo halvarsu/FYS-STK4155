@@ -2,7 +2,6 @@ import numpy as np
 from imageio import imread
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 
 import tools
 
@@ -41,6 +40,7 @@ def fit_terrain_data(file, lambd, deg):
     return zpred.reshape(data.shape[::-1]), data
 
 def plot_terrain(data):
+    """Simple example of how to plot terrain data"""
     m,n = data.shape
 
     xmesh = np.arange(n)
@@ -51,10 +51,10 @@ def plot_terrain(data):
     
     fig = plt.figure()
     ax = fig.add_subplot(111,projection='3d')
-    ax.plot_surface(x,y,data,cmap=cm.viridis,linewidth=0)
+    ax.plot_surface(x,y,data,cmap=plt.cm.viridis,linewidth=0)
 
     # ax = fig.add_subplot(212)
-    # ax.pcolormesh(x,y,data,cmap=cm.viridis,linewidth=0)
+    # ax.pcolormesh(x,y,data,cmap=plt.cm.viridis,linewidth=0)
     plt.show()
 
 if __name__ == "__main__":
