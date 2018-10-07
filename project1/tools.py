@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import AxesGrid
 from scipy import linalg
 from franke import FrankeFunction
+from sklearn.linear_model import Lasso
 
 def generate_data(N = 1000, seed = None, noise = 0.01):
     if not seed is None:
@@ -17,20 +18,23 @@ def generate_data(N = 1000, seed = None, noise = 0.01):
         z += np.random.normal(0,noise,size = z.size)
     return x,y,z, noise
 
+
+
 class Regression(object):
 
-    """Simple tool for linear, ridge or lasso regression."""
+    """Simple tool for linear, ridge regression."""
 
-    def __init__(self, X, y, lmbd = 0, method = 'invert', rank_tol = None):
+    def __init__(self, X, y, lmbd = 0, solve_method = 'invert', rank_tol = None):
         """TODO: to be defined1. """
-        if method.lower() not in ['invert', 'svd']:
-            raise ValueError('invalid method flag {}'.format(method))
+        if solve_method.lower() not in ['invert', 'svd']:
+            raise ValueError('invalid solve_method flag {}'.format(solve_method))
         if X.shape[0] != y.shape[0]:
             raise ValueError('y-dim must equal number of rows in design matrix')
 
+        # print(solve_method)
         self._X = X
         self._y = y
-        self._method = method.lower()
+        self._method = solve_method.lower()
         self._symX = self._X.T @ self._X
         self._symXInv = linalg.inv(self._symX)
         self._rank_tol = rank_tol
@@ -107,17 +111,18 @@ def r2score(y, yhat):
     return 1 - (np.sum((y-yhat)**2)/np.sum((y-ymean)**2))
 
 
-def fit_regr(design_train, z_train, N = 10,noise = 0.1,method = 'ols', lmbd = None):
+def fit_regr(design_train, z_train, N = 10,noise = 0.1,method = 'ols', lmbd
+        = None, solve_method = 'invert'):
     """Helper function for looping over methods with standard values for lmbd"""
     method = method.lower()
     from sklearn.linear_model import Lasso
     
     if method == 'ols':
         lmbd = lmbd or 0
-        regr = Regression(design_train,z_train, lmbd = 0.0)
+        regr = Regression(design_train,z_train, lmbd = 0.0, solve_method = solve_method, rank_tol = 1e-10)
     elif method == 'ridge':
         lmbd = lmbd or 0.5
-        regr = Regression(design_train,z_train, lmbd = lmbd)
+        regr = Regression(design_train,z_train, lmbd = lmbd, solve_method = solve_method, rank_tol = 1e-10)
     else:
         lmbd = lmbd or 0.001
         regr = Lasso(alpha = lmbd, fit_intercept = False)
@@ -199,7 +204,8 @@ def default_stat(regr, z_test, z_train, design_test,
 
 
 def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
-        k = 2, deg= 5, lmbd=0,  method = 'ridge', compare_ground_truth=False):
+        k = 2, deg= 5, lmbd=0,  method = 'ridge',
+        compare_ground_truth=False, solve_method = 'svd'):
     """k-fold validation method on regression methods, calculating some
     statistic given by statistic_func, which takes in the regression object,
     z-data for test and train and design-matrices for test and train.
@@ -251,7 +257,8 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
             regr = Lasso( alpha = lmbd ,fit_intercept = False)
             regr.fit(design_train, z_train)
         else:
-            regr = Regression(design_train,z_train, lmbd = lmbd)
+            regr = Regression(design_train,z_train, lmbd = lmbd,
+                    solve_method = solve_method)
 
         output.append(statistic_func(regr, z_test, z_train, design_test, design_train))
         
@@ -288,7 +295,8 @@ def get_exp_coeffs(beta, deg = 5, print_beta=True):
     df.index.name = 'x_exponent'
     return df
 
-def bootstrap(x,y,z, lmbd = 0, method = 'ols',rep=50, smplsize = 50, r2_score = False):
+def bootstrap(x,y,z, lmbd = 0, method = 'ols',rep=50, smplsize = 50,
+        r2_score = False, solve_method = 'invert'):
     if method.lower() not in ['ols','ridge','lasso']:
         raise ValueError('Invalid method flag, {}'.format(method))
     if method.lower() == 'ols' and lmbd != 0:
@@ -323,10 +331,10 @@ def bootstrap(x,y,z, lmbd = 0, method = 'ols',rep=50, smplsize = 50, r2_score = 
             regr.fit(X_train, train_z)
             z_pred = regr.predict(X_test)
         if method.lower() == 'ols':
-            regr = Regression(X_train, train_z)
+            regr = Regression(X_train, train_z, solve_method = solve_method)
             z_pred = regr.predict(X_test)
         if method.lower() == 'ridge':
-            regr = Regression(X_train, train_z, lmbd=lmbd)
+            regr = Regression(X_train, train_z, lmbd=lmbd, solve_method = solve_method)
             z_pred = regr.predict(X_test)
         
         MSE[r] = squared_error(z_pred, test_z)
@@ -339,7 +347,7 @@ def bootstrap(x,y,z, lmbd = 0, method = 'ols',rep=50, smplsize = 50, r2_score = 
         return MSE
 
 def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5, 
-        lmbd = 0.1, method = 'ridge'):
+        lmbd = 0.1, method = 'ridge', solve_method = 'invert'):
     """
     Uses bootstrap to find the average value of the model at a given
     point (or points)
@@ -366,15 +374,9 @@ def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5,
             regr = Lasso( alpha = lmbd, fit_intercept = False )
             regr.fit( X_train, train_z )
         else:
-            regr = Regression( X_train, train_z, lmbd = lmbd )
+            regr = Regression( X_train, train_z, lmbd = lmbd , solve_method = solve_method)
 
         points[r] = regr.predict(X_test)
         
     return points
 
-def bias_var_decomposition(points,x0,y0):
-    z0 = FrankeFunction(x0,y0)
-    var = np.var(points) #squared
-    err = np.mean((points-z0)**2) #squared
-    bias = err-noise**2-var #squared
-    return np.sqrt(err),np.sqrt(var),np.sqrt(bias)
