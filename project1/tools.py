@@ -21,14 +21,19 @@ class Regression(object):
 
     """Simple tool for linear, ridge or lasso regression."""
 
-    def __init__(self, X, y, lmbd = 0):
+    def __init__(self, X, y, lmbd = 0, method = 'invert', rank_tol = None):
         """TODO: to be defined1. """
+        if method.lower() not in ['invert', 'svd']:
+            raise ValueError('invalid method flag {}'.format(method))
         if X.shape[0] != y.shape[0]:
             raise ValueError('y-dim must equal number of rows in design matrix')
+
         self._X = X
         self._y = y
+        self._method = method.lower()
         self._symX = self._X.T @ self._X
         self._symXInv = linalg.inv(self._symX)
+        self._rank_tol = rank_tol
         self._lmbd = lmbd
 
     @property
@@ -37,8 +42,24 @@ class Regression(object):
             return self._beta
         except AttributeError:
             N = self._symX.shape[0]
-            self._beta = linalg.inv(self._symX + self._lmbd*np.eye(N)) @ self._X.T @ self._y
+            if self._method == 'invert':
+                self._beta = linalg.inv(self._symX + self._lmbd*np.eye(N)) @ self._X.T @ self._y
+            elif self._method == 'svd': # svd 
+                U, s, Vh = linalg.svd(self._X, full_matrices = False)
+                s_inv = np.diag(s/(s**2 + self._lmbd))
+                r = self.rank
+                self._beta = (Vh[:r].T @ s_inv[:r,:r]) @ U.T[:r] @ self._y
+            else:
+                raise NotImplementedError('how did this happen?')
             return self._beta
+
+    @property
+    def rank(self):
+        try:
+            return self._rank
+        except AttributeError:
+            self._rank = np.linalg.matrix_rank(self._symX, tol= self._rank_tol)
+            return self._rank 
 
     @property
     def yhat(self):
