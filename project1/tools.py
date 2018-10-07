@@ -21,10 +21,12 @@ class Regression(object):
 
     """Simple tool for linear, ridge or lasso regression."""
 
-    def __init__(self, X, y, lmbd = 0):
+    def __init__(self, X, y, lmbd = 0, solve_type='invert'):
         """TODO: to be defined1. """
         if X.shape[0] != y.shape[0]:
             raise ValueError('y-dim must equal number of rows in design matrix')
+        if solve_type not in ['invert','SVD']:
+            raise ValueError('invalid solve_type, {}'.format(solve_type))
         self._X = X
         self._y = y
         self._symX = self._X.T @ self._X
