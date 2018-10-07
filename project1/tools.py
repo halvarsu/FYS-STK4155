@@ -188,7 +188,8 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
     Returns
     -------
 
-    output : numpy array of output from output_func
+    output : numpy array of output from output_func, 
+             default = (r2_train, mse_train, r2_test, mse_test)
 
     """
     N = x.size
