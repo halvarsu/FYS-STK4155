@@ -12,6 +12,7 @@ def contour_plot(regr, N = 400, plot_err = True, deg=5):
     else:
         fig, ax = plt.subplots(1,figsize=[6,5])
         axes = [ax]
+    # plt.rcParams.update({'font.size': 16})
 
     xlin = np.linspace(0,1,N)
     ylin = np.linspace(0,1,N)
@@ -52,7 +53,7 @@ def plot_data_3D(x,y,z,zhat,beta):
     """Accepts raw data and fitted Regression object, and plots the fitted data regr.zhat 
     with deviations from the observed data z, over a mesh of the original Franke function"""
     
-    plt.rcParams.update({'font.size': 13})
+    plt.rcParams.update({'font.size': 16})
     fig = plt.figure(figsize = [10,6])
     ax = fig.add_subplot(111,projection = '3d')
 
