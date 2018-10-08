@@ -26,7 +26,7 @@ class Regression(object):
 
     def __init__(self, X, y, lmbd = 0, solve_method = 'invert', rank_tol = None):
         """TODO: to be defined1. """
-        if solve_method.lower() not in ['invert', 'svd']:
+        if solve_method.lower() not in ['invert', 'svd', None]:
             raise ValueError('invalid solve_method flag {}'.format(solve_method))
         if X.shape[0] != y.shape[0]:
             raise ValueError('y-dim must equal number of rows in design matrix')
@@ -99,6 +99,26 @@ class Regression(object):
 
     def predict(self, X):
         return (X @ self.beta ).squeeze()
+
+class LassoWrapper(Lasso, Regression):
+
+    """Wrapper to give Lasso objects some of the same syntax as our
+    Regression class. Creates a fully fit sklearn.linear_model.Lasso
+    regression object on init."""
+
+    def __init__(self, X, y, lmbd, rank_tol = None):
+        Regression.__init__(self, X,y, lmbd = lmbd, solve_method = None,
+                rank_tol = rank_tol)
+        Lasso.__init__(self, alpha = lmbd, fit_intercept = False)
+        self.fit(X, y)
+
+    @property
+    def beta(self):
+        return self._coef
+
+    
+
+
 
 def squared_error(y, yhat):
     n = y.size
@@ -226,17 +246,14 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
         raise ValueError('Invalid method flag, {}'.format(method))
     if method.lower() == 'ols' and lmbd != 0:
         raise ValueError('lmbd != 0 does not make sense for OLS.')
-    if method.lower() == 'lasso':
-        from sklearn.linear_model import Lasso
 
+    output = []
 
     N = x.size
     indexes = np.linspace(0,N,k+1, dtype = int)
 
     # fold sizes. Might vary with 1
     sizes = np.diff(indexes) 
-    
-    output = []
     for size in sizes:
         # We roll at end of loop
         x_test = x[:size]
@@ -254,8 +271,8 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
         design_test = get_X_poly2D(x_test, y_test, deg =deg)
         
         if method.lower() == 'lasso':
-            regr = Lasso( alpha = lmbd ,fit_intercept = False)
-            regr.fit(design_train, z_train)
+            regr = LassoWrapper(design_train, z_train, lmbd = lmbd, fit_intercept = False)
+            # regr.fit(design_train, z_train)
         else:
             regr = Regression(design_train,z_train, lmbd = lmbd,
                     solve_method = solve_method)
@@ -379,4 +396,41 @@ def bootstrap_predict_point(x,y,z,x0 = 0.5, y0 = 0.5, rep=50, deg = 5,
         points[r] = regr.predict(X_test)
         
     return points
+
+
+
+
+
+
+def get_bias_and_variance(x,y,z, ground_truth=FrankeFunction, method = 'ols', solve_method = 'svd', lmbd = 0, deg = 5):
+    """Uses a combination of k-fold (k=50) and bootstrap (50 repetitions)
+    to estimate bias and variance. Access to ground truth data, i.e.
+    without noise, is necessary."""
+
+    #X_test = get_X_poly2D(x, y, deg = deg)
+
+    def bias_var_return_values(regr, z_test, z_train, design_test, design_train):
+
+        """Specifies the return values in the k_fold-validation as x,y,z_pred"""
+        x_train, y_train = design_train[:,2], design_train[:,1]
+        x_test, y_test = design_test[:,2], design_test[:,1]
+        z_pred = bootstrap_predict_point(x_train, y_train, z_train, 
+                x0 = x_test, y0 = y_test, deg = deg, rep = 50, lmbd=lmbd, 
+                method = method, solve_method = solve_method)
+
+        return np.array(z_pred), x_test, y_test, z_test
+
+    # k = 50 gives 98% training and 2% test
+    ret = k_fold_val(x, y, z,statistic_func=bias_var_return_values, k = 10, deg = deg, method = method,
+                           solve_method = solve_method, return_average = False, lmbd = lmbd)
+
+    z_pred = np.concatenate(ret[:,0], axis = 1) 
+    x_test = np.concatenate(ret[:,1], axis = 0)
+    y_test = np.concatenate(ret[:,2], axis = 0)
+    z_test = np.concatenate(ret[:,3], axis = 0)
+
+    z_pred_mean = np.mean(z_pred, axis = 0)
+    var = np.mean(np.var(z_pred,axis = 0))
+    bias_squared = np.mean((ground_truth(x_test,y_test) - z_pred_mean)**2)
+    return var, bias_squared
 
