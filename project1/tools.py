@@ -271,8 +271,8 @@ def k_fold_val(x, y, z, statistic_func= default_stat, return_average = True,
         design_test = get_X_poly2D(x_test, y_test, deg =deg)
         
         if method.lower() == 'lasso':
-            regr = LassoWrapper(design_train, z_train, lmbd = lmbd, fit_intercept = False)
-            # regr.fit(design_train, z_train)
+            regr = Lasso(alpha = lmbd, fit_intercept = False)
+            regr.fit(design_train, z_train)
         else:
             regr = Regression(design_train,z_train, lmbd = lmbd,
                     solve_method = solve_method)
@@ -415,7 +415,7 @@ def get_bias_and_variance(x,y,z, ground_truth=FrankeFunction, method = 'ols', so
         x_train, y_train = design_train[:,2], design_train[:,1]
         x_test, y_test = design_test[:,2], design_test[:,1]
         z_pred = bootstrap_predict_point(x_train, y_train, z_train, 
-                x0 = x_test, y0 = y_test, deg = deg, rep = 50, lmbd=lmbd, 
+                x0 = x_test, y0 = y_test, deg = deg, rep = 10, lmbd=lmbd, 
                 method = method, solve_method = solve_method)
 
         return np.array(z_pred), x_test, y_test, z_test
