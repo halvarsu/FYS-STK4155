@@ -92,10 +92,12 @@ def plot_covar(regr, deg=5):
    
 
 from itertools import repeat
-def add_letters_to_axes(axes, letters = None, pos = repeat([0.01,0.9])):
+def add_letters_to_axes(axes, letters = None, pos = ([0.01,0.9]),*args,**kwargs):
+    if len(pos) == 2:
+        pos = repeat(pos)
     if not letters:
         letters = (chr(i) for i in range(65,91)) # large letters A-Z
 
     for ax, l, [x,y] in zip(axes, letters, pos):
         print(x,y)
-        ax.text(x,y,l,transform = ax.transAxes)
+        ax.text(x, y, l, *args, transform = ax.transAxes,  **kwargs)
