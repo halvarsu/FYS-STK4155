@@ -36,7 +36,6 @@ class Regression(object):
         self._y = y
         self._method = solve_method.lower()
         self._symX = self._X.T @ self._X
-        self._symXInv = linalg.inv(self._symX)
         self._rank_tol = rank_tol
         self._lmbd = lmbd
 
@@ -75,6 +74,11 @@ class Regression(object):
 
     @property 
     def symXInv(self):
+        try:
+            return self._symXInv 
+        except AttributeError:
+            self._symXInv = linalg.inv(self._symX)
+            return self._symXInv 
         return self._symXInv
 
     @property
@@ -89,7 +93,7 @@ class Regression(object):
         
     @property
     def betaVar(self):
-        return self._symXInv * self.sigma_y
+        return self.symXInv * self.sigma_y
 
     def r2score(self):
         return r2score(self._y, self.yhat)
