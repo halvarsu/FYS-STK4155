@@ -16,7 +16,7 @@ def ising_energies1D(states):
     This function calculates the energies of the states in the nn Ising Hamiltonian
     """
     L = states.shape[1]
-    J=np.zeros((L,L),)
+    J = np.zeros((L,L),)
     for i in range(L):
         J[i,(i+1)%L]-=1.0
     # compute energies
