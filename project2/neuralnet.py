@@ -4,7 +4,7 @@ import random
 
 class NeuralNet(object):
     
-    def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 0):
+    def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 1):
         """
         Neural network, where sizes is a list where the length of the list 
         will be the number of layers including the input layer, with each
@@ -22,8 +22,8 @@ class NeuralNet(object):
         """
         self.sizes = sizes
         self.num_layers = len(sizes) 
-        self.biases = [0.02 * np.random.randn(y) for y in sizes[1:]]
-        self.weights = [0.02 * np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.biases  = [0.1 * np.random.randn(y) for y in sizes[1:]]
+        self.weights = [0.1 * np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
 
         if type(act_func) == str:
             act_func = [act_func]
@@ -57,9 +57,12 @@ class NeuralNet(object):
         delta = self.d_cost(outputs[-1], y) * d_act
 
         grad_b[-1][:] = delta
-        grad_w[-1][:] = np.outer(delta , outputs[-2])
+        if len(outputs) > 1:
+            grad_w[-1][:] = np.outer(delta , outputs[-2])
+        else:
+            grad_w[-1][:] = np.outer(delta, x)
 
-        for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,2 
+        for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,0 
             d_act = self.act_funcs[l].deriv(zs[l])
             delta = (self.weights[l+1].T @ delta) * d_act
             grad_b[l][:] = delta
@@ -68,7 +71,6 @@ class NeuralNet(object):
                 grad_w[l][:] = np.outer(delta, outputs[l-1])
             else:
                 grad_w[l][:] = np.outer(delta, x)
-
         return (grad_b, grad_w)    
 
     def stoc_grad_descent(self, train_data, epochs, batch_size, eta):
@@ -92,6 +94,8 @@ class NeuralNet(object):
 
         for x,y in batch:
             d_grad_b, d_grad_w = self.backpropagate(x,y)
+
+            # print([eta * np.mean(dw/w) for w,dw in zip(self.weights, d_grad_w)])
             grad_w =  [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
             grad_b =  [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
 
@@ -194,7 +198,7 @@ class ActivationFunction(FunctionBase):
         return np.choose(x < 0, [x, self._alpha * (np.exp(x)-1)])
 
     def d_identity(self,x):
-        return x
+        return 1
 
     def d_sigmoid(self, x):
         return self.sigmoid(x)*(1.0 - self.sigmoid(x))
@@ -209,7 +213,7 @@ class ActivationFunction(FunctionBase):
         return 1 - activation(x)**2
 
     def d_relu(self, x):
-        return _alpha * (x > 0)
+        return self._alpha * (x > 0)
 
     def d_elu(x):
         return np.choose(x > 0, [1, self._alpha * np.exp(x)])
