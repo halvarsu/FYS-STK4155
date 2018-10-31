@@ -112,3 +112,72 @@ def batches(inputs, targets, n_batches = 10, shuffle = True):
     for i in range(n_batches):
         batch = [(x,y) for x, y in zip(inputs[indx[i]:indx[i+1]], targets[indx[i]:indx[i+1]])] 
         yield batch
+
+
+def grid_search(hidden_sizes):
+    """
+    Result production function. Sets up a neural network with one hidden
+    layer and performs a grid search over the size of the hidden layer.
+    """
+    from neuralnetwork import NeuralNetwork
+
+    for h_size in hidden_sizes:
+        layer_sizes = [1600, h_size, 1]
+        net = NeuralNetwork(layer_sizes, act_func = ['sigmoid', 'identity'])
+
+
+def stoch_grad_descent(net, inputs, targets, test_data_size = 0, epochs = 100,
+        n_batches = 100, eta = 1e-3, verbose = True, 
+        statistics_function = mse_net): 
+    """Stochastic gradient descent. Training data is shuffled and split
+    into minibatches, which are used to train the network. If
+    test_data_size != 0, the data is split into training and test and the
+    function given by statistic is run on test data (input and target)
+    after each batch. 
+
+    Parameters:
+    -----------
+
+    inputs: np.array_like
+        input data to the net
+
+    targets: np.array_like
+        targets
+
+    test_data_size : float ∈ [0, 1)
+        how large part of the data to use for test. 
+
+    epochs : int
+        number of epochs
+
+    n_batches : int
+        number of batches
+
+    eta : float
+        training
+        
+
+    statistics_function : function
+        should take (net, inputs, targets) as input
+
+    """
+
+    from project2_tools import batches, MSE_net
+
+    if verbose: 
+        print('epoch, MSE')
+
+    mse = []
+    for j in range(epochs):
+        b = batches(input_train, target_train, n_batches = n_batches,
+                shuffle = True)
+
+
+        for k, batch in enumerate(b):
+            net.update_batch(batch, eta)
+        mse.append(mse_net(input_test, target_test))
+
+        if verbose:
+            print('{:5}  {:.2f}'.format(j+1, mse[-1]))#, 'o', markersize = 9)
+    return mse
+

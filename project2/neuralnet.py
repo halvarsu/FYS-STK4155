@@ -73,18 +73,6 @@ class NeuralNet(object):
                 grad_w[l][:] = np.outer(delta, x)
         return (grad_b, grad_w)    
 
-    def stoc_grad_descent(self, train_data, epochs, batch_size, eta):
-        if type(train_data) != type(np.zeros(1)):
-            print('Make sure train_data is of type np.ndarray')
-        else:
-            n = train_data.shape[0]
-            for j in range(epochs):
-                random.shuffle(train_data)
-                batches = [train_data[k:k+batch_size]
-                            for k in range(0,n,batch_size)]
-            for batch in batches:
-                self.update_batch(batch,eta)
-            #print('Epoch {0} complete'.format(j))
     
     def update_batch(self,batch,eta):
         grad_b = [np.zeros(b.shape) for b in self.biases]
@@ -165,6 +153,12 @@ class CostFunction(FunctionBase):
         return 0.5*np.sum((out - y)**2)
 
     def logistic_regression(self, out, y):
+        raise NotImplementedError
+
+    def d_linear_regression(self, out, y):
+        return out - y
+
+    def d_logistic_regression(self, out, y):
         raise NotImplementedError
 
 class ActivationFunction(FunctionBase):
