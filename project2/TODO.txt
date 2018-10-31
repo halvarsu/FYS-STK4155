@@ -1,0 +1,27 @@
+a) Producing the data for the one-dimensional Ising model
+    - Load dataset. DONE!
+
+b) Estimating the coupling constant of the one-dimensional Ising model using linear regression
+    - run bias/variance test.
+    - Give critical analysis of results
+
+c) Determine the phase of the two-dimensional Ising model
+    - Write code for logistic regression. DONE!
+    - Evaluate performance with accuracy score. DONE!
+    - Include gradient descent solver. DONE!
+        - stocatstic gradient descent ?
+    - Predict phase of sample.
+
+d) Regression analysis of the one-dimensional Ising model using neural networks
+    - Write multi-layer perceptron with back propagation. DONE?
+    - Train model to get optimal weights and biases (as in a) and b)). DONE?
+    - Compare with linear regression code.
+
+e) Classifying the Ising model phase using neural networks
+    - Change cost function for network to log cross-entropy (classification).
+    - Compare with c) (and metha et al.?(tensorflow)).
+
+f) Critical evaluation of the various algorithms
+    - Summarize and compare algorithms.
+    - Which works best for regression? classification?
+
