@@ -7,10 +7,12 @@ class NeuralNet(object):
     def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 0):
         """
         Neural network, where sizes is a list where the length of the list 
-        will be the number of layers, with each element corresponding the number
-        of neurons in each layer.
+        will be the number of layers including the input layer, with each
+        element corresponding the number of neurons in each layer.
 
-        Activation functions:
+        act_func : str, or list of str
+
+        Available activation functions:
             - sigmoid
             - step
             - softsign
@@ -20,9 +22,22 @@ class NeuralNet(object):
         """
         self.sizes = sizes
         self.num_layers = len(sizes) 
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
-        self.act_func = act_func
+        self.biases = [0.02 * np.random.randn(y) for y in sizes[1:]]
+        self.weights = [0.02 * np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+
+        if type(act_func) == str:
+            act_func = [act_func]
+
+        if len(act_func) == 1:
+            a = ActivationFunction(act_func[0])
+            self.act_funcs = [a for _ in sizes[:-1]]
+        elif len(act_func) == self.num_layers - 1:
+            self.act_funcs = [ActivationFunction(s) for s in act_func]
+        else:
+            msg = 'act_func must be str or list of strings for each layer (except input)'
+            raise TypeError(msg)
+        # self.act_funcs.insert(0, ActivationFunction('identity'))
+
         self.alpha = alpha
     
     def __del__(self):
@@ -34,23 +49,26 @@ class NeuralNet(object):
     def backpropagate(self, x,y):
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
-        out = x
-        outputs = [x] # List of activations
-        zs = [] # List of weighted inputs
-        for b, w in zip(self.biases, self.weights):
-            z = get_out(w,x,b)
-            zs.append(z)
-            out = activation(z)
-            outputs.append(out)
+
+        zs, outputs = self.feed_forward(x)
+
         # Start backward [-1]=> last entry
-        dC = d_cost(out[-1], y) * d_activation(zs[-1]) 
-        grad_b[-1] = dC
-        grad_w[-1] = dC@outputs.transpose()
-        for l in range(2, self.num_layers):
-            d_act = d_activation(zs[-1])
-            dC = np.dot(self.weights[-l+1].transpose(), dC) * d_act
-            grad_b[-l] = dC
-            grad_w[-l] = dC@outputs.transpose()
+        d_act = self.act_funcs[-1].deriv(zs[-1])
+        delta = self.d_cost(outputs[-1], y) * d_act
+
+        grad_b[-1][:] = delta
+        grad_w[-1][:] = np.outer(delta , outputs[-2])
+
+        for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,2 
+            d_act = self.act_funcs[l].deriv(zs[l])
+            delta = (self.weights[l+1].T @ delta) * d_act
+            grad_b[l][:] = delta
+
+            if l > 0:
+                grad_w[l][:] = np.outer(delta, outputs[l-1])
+            else:
+                grad_w[l][:] = np.outer(delta, x)
+
         return (grad_b, grad_w)    
 
     def stoc_grad_descent(self, train_data, epochs, batch_size, eta):
@@ -69,53 +87,130 @@ class NeuralNet(object):
     def update_batch(self,batch,eta):
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
+
+        n = len(batch)
+
         for x,y in batch:
             d_grad_b, d_grad_w = self.backpropagate(x,y)
-            grad_b = [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
-            grad_w = [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
-        self.weights = [w-(eta/batch.shape[0])*nw for w,nw in zip(self.weights,grad_w)]
-        self.biases = [b-(eta/batch.shape[0])*nb for b,nb in zip(self.biases,grad_b)]
+            grad_w =  [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
+            grad_b =  [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
 
-    def feed_forward(self, out):
-        for b, w in zip(self.biases, self.weights):
-            out = get_out(w,out,b)
-        return out
+        self.weights = [w-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
+        self.biases = [b-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
 
-    def get_out(w,out, b):
-        return w@out + b
+    def feed_forward(self, inp):
+
+        z = self.weights[0] @ inp + self.biases[0]
+        out = self.act_funcs[0](z)
+        outputs = [out] # List of activations
+        zs = [z]        # List of weighted z's
+        i = 1
+        for act_func, b, w in zip(self.act_funcs[1:], self.biases[1:], self.weights[1:]):
+            z = w @ out + b 
+            out = act_func(z)
+            zs.append(z)
+            outputs.append(out)
+            i+=1
+        return zs, outputs
+
+    def get_out(self, w,out, b):
+        return w @ out + b
     
     def d_cost(self, out, y):
         return(out - y)
     
-    def activation(x):
-        if self.act_func.lower() == 'sigmoid':  
-            return 1.0/(1.0 + np.exp(-x))
-        if self.act_func.lower() == 'step':
-            if x < 0: return 0
-            else: return 1
-        if self.act_func.lower() == 'softsign':
-            return x/1+np.abs(x)
-        if self.act_func.lower() == 'tanh':
-            return np.tanh(x)
-        if self.act_func.lower() == 'relu':
-            if x < 0: return self.alpha*x
-            else: return x
-        if self.act_func.lower() == 'elu':
-            if x < 0: return self.alpha*(np.exp(x)-1)
-            else: return x
 
-    def d_activation(x):
-        if self.act_func.lower() == 'sigmoid':  
-            return activation(x)*(1.0 - activation(x))
-        if self.act_func.lower() == 'step':
-            return 0
-        if self.act_func.lower() == 'softsign':
-            return activation(x)**2
-        if self.act_func.lower() == 'tanh':
-            return 1 - activation(x)**2
-        if self.act_func.lower() == 'relu':
-            if x < 0: return self.alpha
-            else: return 1
-        if self.act_func.lower() == 'elu':
-            if x < 0: return activation(x) + self.alpha
-            else: return 1
+class FunctionBase:
+    def __init__(self, func_name):
+        if type(func_name) != str:
+            raise TypeError('func_name must be string')
+        self.Function = func_name
+
+    @property
+    def Function(self):
+        return self._func_name
+
+    @Function.setter
+    def Function(self, func_name):
+        """Set current function and its derivative to the given func_name"""
+        try:
+            self._func = getattr(self, func_name)
+            self._deriv = getattr(self, 'd_' + func_name)
+            self._func_name = func_name
+        except ValueError:
+            print('func_name must be string')
+            raise 
+
+    def __call__(self, x):
+        return self.func(x)
+
+    def func(self, x):
+        return self._func(x)
+
+    def deriv(self, x):
+        return self._deriv(x)
+
+class CostFunction(FunctionBase):
+
+    """Docstring for CostFunction. """
+
+    def __init__(self, cost_func):
+        FunctionBase.__init__(self, func_name = cost_func)
+
+    def linear_regression(self, out, y):
+        return 0.5*np.sum((out - y)**2)
+
+    def logistic_regression(self, out, y):
+        raise NotImplementedError
+
+class ActivationFunction(FunctionBase):
+
+    """Docstring for ActivationFunction. """
+
+    def __init__(self, activation, alpha = 1):
+        FunctionBase.__init__(self, func_name = activation)
+        self._alpha = alpha
+        
+
+    def identity(self,x):
+        return x
+
+    def sigmoid(self, x):
+        return 1.0/(1.0 + np.exp(-x))
+
+    def step(self, x):
+        return np.int64(x >= 0)
+
+    def softsign(self, x):
+        return x/1+np.abs(x)
+
+    def tanh(self, x):
+        return np.tanh(x)
+
+    def relu(self, x):
+        return self._alpha * np.maximum(x, 0)
+    
+    def elu(self, x):
+        return np.choose(x < 0, [x, self._alpha * (np.exp(x)-1)])
+
+    def d_identity(self,x):
+        return x
+
+    def d_sigmoid(self, x):
+        return self.sigmoid(x)*(1.0 - self.sigmoid(x))
+
+    def d_step(self, x):
+        return 0
+
+    def d_softsign(self, x):
+        return activation(x)**2
+
+    def d_tanh(self, x):
+        return 1 - activation(x)**2
+
+    def d_relu(self, x):
+        return _alpha * (x > 0)
+
+    def d_elu(x):
+        return np.choose(x > 0, [1, self._alpha * np.exp(x)])
+
