@@ -10,7 +10,7 @@ c) Determine the phase of the two-dimensional Ising model
     - Evaluate performance with accuracy score. DONE!
     - Include gradient descent solver. DONE!
         - stocatstic gradient descent ?
-    - Predict phase of sample.
+    - Predict phase of sample. DONE!
 
 d) Regression analysis of the one-dimensional Ising model using neural networks
     - Write multi-layer perceptron with back propagation. DONE?
