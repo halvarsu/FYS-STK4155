@@ -4,13 +4,17 @@ import random
 
 class NeuralNet(object):
     
-    def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 1):
+    def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 1,
+            net_type = 'regression'):
         """
         Neural network, where sizes is a list where the length of the list 
         will be the number of layers including the input layer, with each
         element corresponding the number of neurons in each layer.
 
         act_func : str, or list of str
+
+        net_type : str
+            must be either linear og logistic
 
         Available activation functions:
             - sigmoid
@@ -20,6 +24,13 @@ class NeuralNet(object):
             - ReLU (with alpha!=0 for leaky ReLU)
             - ELU
         """
+        if net_type not in ['regression', 'classifier']:
+            raise TypeError("invalid net_type flag '%s', must be one of 'regression','classifier'"
+                    % net_type)
+        elif net_type != 'classifier' and 'softmax' in act_func:
+            import warnings
+            warnings.warn('Are you sure you want softmax when using regression?') 
+        self.net_type = net_type
         self.sizes = sizes
         self.num_layers = len(sizes) 
         self.biases  = [0.1 * np.random.randn(y) for y in sizes[1:]]
@@ -46,15 +57,22 @@ class NeuralNet(object):
     def add_layer(self, n):
         self.sizes.append(n)
     
-    def backpropagate(self, x,y):
+    def backpropagate(self, x, y):
+        if np.size(y) != self.sizes[-1]:
+            # print(np.size(y) , self.sizes[-1])
+            raise ValueError('target must have same size as output layer')
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
 
         zs, outputs = self.feed_forward(x)
 
         # Start backward [-1]=> last entry
-        d_act = self.act_funcs[-1].deriv(zs[-1])
-        delta = self.d_cost(outputs[-1], y) * d_act
+
+        if self.net_type == 'regression':
+            d_act = self.act_funcs[-1].deriv(zs[-1])
+            delta = self.d_cost(outputs[-1], y) * d_act
+        elif self.net_type == 'classifier':
+            delta = outputs[-1] - y
 
         grad_b[-1][:] = delta
         if len(outputs) > 1:
@@ -73,7 +91,78 @@ class NeuralNet(object):
                 grad_w[l][:] = np.outer(delta, x)
         return (grad_b, grad_w)    
 
+    def backpropagate_vectorized(self, x, y, vector_input = True):
+        y_shape = np.shape(y)
+        x_shape = np.shape(x)
+        if vector_input:
+            if y_shape[0] != x_shape[0]:
+                raise ValueError('x and y must have same first dimension with vector_input')
+            if self.sizes[-1] == 1:
+                if len(y_shape) != 1:
+                    raise ValueError('y must have same last dimension as output layer with vector_input')
+            else:
+                if y_shape[-1] != self.sizes[-1]:
+                    raise ValueError('y must have same last dimension as output layer with vector_input')
+            # n_sets = x.shape[0]
+        else:
+            if self.sizes[-1] == 1:
+                if len(y_shape):
+                    raise ValueError('y must have same size as output layer')
+            else:
+                if y_shape[0] != self.sizes[-1]:
+                    raise ValueError('y must have same size as output layer')
+            # n_sets = None
+
+        grad_b = [np.zeros(b.shape) for b in self.biases]
+        grad_w = [np.zeros(w.shape) for w in self.weights]
+
+        zs, outputs = self.feed_forward_vectorized(x)
+
+        # Start backward [-1]=> last entry
+
+        if self.net_type == 'regression':
+            d_act = self.act_funcs[-1].deriv(zs[-1])
+            delta = self.d_cost(outputs[-1], y) * d_act
+        elif self.net_type == 'classifier':
+            delta = outputs[-1] - y
+
+        grad_b[-1] = np.mean(delta, axis = 0)
+        if len(outputs) > 1:
+            grad_w[-1] = np.einsum('ij,ik->jk',delta , outputs[-2])
+        else:
+            grad_w[-1] = np.einsum('ij,ik->jk', delta, x)
+
+        for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,0 
+            d_act = self.act_funcs[l].deriv(zs[l])
+            # delta = (self.weights[l+1].T @ delta) * d_act
+            # delta = np.einsum('ij,ik->jk',self.weights[l+1], delta) * d_act
+            delta = np.einsum('...ij,...i->...j',self.weights[l+1], delta) * d_act
+            grad_b[l] = np.mean(delta, axis = 0)
+
+            if l > 0:
+                grad_w[l][:] = np.einsum('ij,ik->jk', delta, outputs[l-1])
+            else:
+                np.einsum('ij,ik->jk', delta, x, out = grad_w[l])
+                # self.weights[l] = 
+                print(grad_w[l][:].shape, delta.shape, x.shape)
+                # grad_w[l][:] = np.tensordot(delta, x, axes = [1,1])
+                temp = delta[...,None]*x[:,None]
+
+                return delta,x, temp, grad_w[l]
+        return (grad_b, grad_w)    
     
+    def update_batch_vectorized(self, x, y,eta):
+        n = len(x)
+
+        grad_b_list, grad_w_list = self.backpropagate_vectorized(x,y, vector_input=True)
+        grad_b = [np.sum(gb, axis = 0) for gb in grad_b_list]
+        grad_w = [np.sum(gw, axis = 0) for gw in grad_w_list]
+        # grad_b = np.sum(grad_b_arr, axis = 0)
+        # grad_w = np.sum(grad_w_arr, axis = 0)
+
+        self.weights = [w-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
+        self.biases = [b-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
+
     def update_batch(self,batch,eta):
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
@@ -89,6 +178,29 @@ class NeuralNet(object):
 
         self.weights = [w-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
         self.biases = [b-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
+
+    def feed_forward_vectorized(self, inputs):
+        # tensordot and matmul ~ equal time
+        # z = np.zeros((inputs.shape[0], self.weights[0].shape[0]))
+        # for i,data in enumerate(inputs):
+        #     z[i] = self.weights[0] @ data + self.biases[0]
+        #     p
+        # z2 = np.matmul(self.weights[0], inputs.T).T + self.biases[0]
+        # z3 = np.einsum('...ij,...j->...i',self.weights[0] , inputs) + self.biases[0]
+        z = np.tensordot(inputs, self.weights[0], axes = [1,1]) + self.biases[0]
+
+        out = self.act_funcs[0](z)
+        zs = [z]        # List of weighted z's
+        outputs = [out] # List of activations
+        i = 1
+        for act_func, b, w in zip(self.act_funcs[1:], self.biases[1:], self.weights[1:]):
+            # z = np.einsum('...ij,...j->...i', w, out) + b
+            z = np.tensordot(out, w, axes = [1,1]) + b
+            out = act_func(z)
+            zs.append(z)
+            outputs.append(out)
+            i+=1
+        return zs, outputs
 
     def feed_forward(self, inp):
 
@@ -191,6 +303,10 @@ class ActivationFunction(FunctionBase):
     def elu(self, x):
         return np.choose(x < 0, [x, self._alpha * (np.exp(x)-1)])
 
+    def softmax(self, X, axis = -1):
+        from project2_tools import softmax
+        return softmax(X, axis = -1)
+
     def d_identity(self,x):
         return 1
 
@@ -212,3 +328,7 @@ class ActivationFunction(FunctionBase):
     def d_elu(x):
         return np.choose(x > 0, [1, self._alpha * np.exp(x)])
 
+    def d_softmax(self, X, axis = -1):
+        """assuming df(x_i)/dx_j with i == j"""
+        from project2_tools import softmax
+        return softmax(X, axis = -1) * (1 - softmax(X, axis = -1))
