@@ -92,6 +92,7 @@ class NeuralNet(object):
         return (grad_b, grad_w)    
 
     def backpropagate_vectorized(self, x, y, vector_input = True):
+        from project2_tools import add_outer_products
         y_shape = np.shape(y)
         x_shape = np.shape(x)
         if vector_input:
@@ -103,7 +104,7 @@ class NeuralNet(object):
             else:
                 if y_shape[-1] != self.sizes[-1]:
                     raise ValueError('y must have same last dimension as output layer with vector_input')
-            # n_sets = x.shape[0]
+            n_sets = x.shape[0]
         else:
             if self.sizes[-1] == 1:
                 if len(y_shape):
@@ -111,7 +112,7 @@ class NeuralNet(object):
             else:
                 if y_shape[0] != self.sizes[-1]:
                     raise ValueError('y must have same size as output layer')
-            # n_sets = None
+            n_sets = 1
 
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
@@ -128,35 +129,27 @@ class NeuralNet(object):
 
         grad_b[-1] = np.mean(delta, axis = 0)
         if len(outputs) > 1:
-            grad_w[-1] = np.einsum('ij,ik->jk',delta , outputs[-2])
+            add_outer_products(delta, outputs[-2], out = grad_w[-1], weight = 1/n_sets)
         else:
-            grad_w[-1] = np.einsum('ij,ik->jk', delta, x)
+            add_outer_products(delta, x, out = grad_w[-1], weight = 1/n_sets)
 
         for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,0 
             d_act = self.act_funcs[l].deriv(zs[l])
-            # delta = (self.weights[l+1].T @ delta) * d_act
-            # delta = np.einsum('ij,ik->jk',self.weights[l+1], delta) * d_act
             delta = np.einsum('...ij,...i->...j',self.weights[l+1], delta) * d_act
+            # delta = np.mean(np.einsum('...ij,...i->...j',self.weights[l+1], delta) * d_act, axis = 0)
             grad_b[l] = np.mean(delta, axis = 0)
 
             if l > 0:
-                grad_w[l][:] = np.einsum('ij,ik->jk', delta, outputs[l-1])
+                add_outer_products(delta, outputs[l-1], out = grad_w[l], weight = 1/n_sets)
             else:
-                np.einsum('ij,ik->jk', delta, x, out = grad_w[l])
-                # self.weights[l] = 
-                print(grad_w[l][:].shape, delta.shape, x.shape)
-                # grad_w[l][:] = np.tensordot(delta, x, axes = [1,1])
-                temp = delta[...,None]*x[:,None]
+                add_outer_products(delta, x, out = grad_w[l], weight = 1/n_sets)
 
-                return delta,x, temp, grad_w[l]
         return (grad_b, grad_w)    
     
     def update_batch_vectorized(self, x, y,eta):
         n = len(x)
 
-        grad_b_list, grad_w_list = self.backpropagate_vectorized(x,y, vector_input=True)
-        grad_b = [np.sum(gb, axis = 0) for gb in grad_b_list]
-        grad_w = [np.sum(gw, axis = 0) for gw in grad_w_list]
+        grad_b, grad_w = self.backpropagate_vectorized(x,y, vector_input=True)
         # grad_b = np.sum(grad_b_arr, axis = 0)
         # grad_w = np.sum(grad_w_arr, axis = 0)
 
@@ -222,6 +215,19 @@ class NeuralNet(object):
     
     def d_cost(self, out, y):
         return(out - y)
+
+    def accuracy(self, test_inputs, test_targets):
+        """
+        Returns accuracy of net for given test data set.
+        """
+        from project2_tools import from_onehot
+
+        _, outputs = self.feed_forward_vectorized(test_inputs)
+        
+        mle = np.argmax(outputs[-1], axis = 1)
+        target = from_onehot(test_targets)
+        accuracy = np.mean(mle == target)
+        return accuracy
     
 
 class FunctionBase:

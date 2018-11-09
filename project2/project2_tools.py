@@ -1,4 +1,5 @@
 import numpy as np
+from numba import jit, njit
 import pickle
 
 def read_t(t,root="./data/IsingData/", dtype = np.int8):
@@ -125,7 +126,7 @@ def MSE_net(test_inputs, test_targets, net):
     mse = np.mean((y - pred)**2)
     return mse
 
-def batches(inputs, targets, n_batches = 10, shuffle = True):
+def batches(inputs, targets, n_batches = 10, shuffle = True, zipped = True):
     """
     Creates a generator which yields batches of input and targets.
 
@@ -159,8 +160,15 @@ def batches(inputs, targets, n_batches = 10, shuffle = True):
         raise ValueError('length of inputs and targets must be equal')
     indx = np.linspace(0, len(inputs), n_batches + 1, dtype=int)
     for i in range(n_batches):
-        batch = [(x,y) for x, y in zip(inputs[indx[i]:indx[i+1]], targets[indx[i]:indx[i+1]])] 
-        yield batch
+        x = inputs[indx[i]:indx[i+1]]
+        y = targets[indx[i]:indx[i+1]]
+        if zipped:
+            batch = [(x,y) for x, y in zip(inputs[indx[i]:indx[i+1]], targets[indx[i]:indx[i+1]])] 
+            yield [(_x,_y) for _x,_y in zip(x,y)]
+        else:
+            yield x, y
+
+
 
 
 def grid_search(hidden_sizes):
@@ -279,17 +287,38 @@ def softmax(X, theta = 1.0, axis = None):
     return p
 
 
-from numba import jit
-@jit
+@njit
 def calc_sum(a,b,c):
+    """temporary"""
     for i in range(a.shape[1]):
         for j in range(b.shape[1]):
             c[:,i,j] = a[:,i] * b[:,j]
 
-@jit
+@njit
 def calc_sum2(a,b,c):
+    """temporary"""
     for i in range(a.shape[1]):
         for j in range(b.shape[1]):
             for k in range(a.shape[0]):
                 c[k,i,j] = a[k,i] * b[k,j]
 
+@njit
+def calc_sum3(a,b,c, weight):
+    """temporary"""
+    for i in range(a.shape[1]):
+        for j in range(b.shape[1]):
+            for k in range(a.shape[0]):
+                c[i,j] += a[k,i] * b[k,j] * weight
+
+
+@njit
+def add_outer_products(x,y,out,weight=1):
+    """
+    Calculates the outer product elementwise over the second axis in both x
+    and y, and adds to out, weighted by weight. In einstein notation,
+    out_ij += x_ki * y_kj * weight.
+    """
+    for i in range(out.shape[0]):
+        for j in range(out.shape[1]):
+            for k in range(x.shape[0]):
+                out[i,j] += x[k,i] * y[k,j] * weight
