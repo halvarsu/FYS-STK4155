@@ -1,0 +1,62 @@
+Timer unit: 1e-06 s
+
+Total time: 0.048699 s
+File: /home/halvard/uio/fys-stk4155_machinelearning/project2/neuralnet.py
+Function: backpropagate_vectorized at line 98
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    98                                               def backpropagate_vectorized(self, x, y, vector_input = True):
+    99         1         10.0     10.0      0.0          from project2_tools import add_outer_products
+   100         1          5.0      5.0      0.0          y_shape = np.shape(y)
+   101         1          2.0      2.0      0.0          x_shape = np.shape(x)
+   102         1          1.0      1.0      0.0          if vector_input:
+   103         1          2.0      2.0      0.0              if y_shape[0] != x_shape[0]:
+   104                                                           raise ValueError('x and y must have same first dimension with vector_input')
+   105         1          2.0      2.0      0.0              if self.sizes[-1] == 1:
+   106                                                           if len(y_shape) != 1:
+   107                                                               raise ValueError('y must have same last dimension as output layer with vector_input')
+   108                                                       else:
+   109         1          1.0      1.0      0.0                  if y_shape[-1] != self.sizes[-1]:
+   110                                                               raise ValueError('y must have same last dimension as output layer with vector_input')
+   111         1          1.0      1.0      0.0              n_sets = x.shape[0]
+   112                                                   else:
+   113                                                       if self.sizes[-1] == 1:
+   114                                                           if len(y_shape):
+   115                                                               raise ValueError('y must have same size as output layer')
+   116                                                       else:
+   117                                                           if y_shape[0] != self.sizes[-1]:
+   118                                                               raise ValueError('y must have same size as output layer')
+   119                                                       n_sets = 1
+   120                                           
+   121         1          7.0      7.0      0.0          grad_b = [np.zeros(b.shape) for b in self.biases]
+   122         1         53.0     53.0      0.1          grad_w = [np.zeros(w.shape) for w in self.weights]
+   123                                           
+   124         1      20847.0  20847.0     42.8          zs, outputs = self.feed_forward_vectorized(x)
+   125                                           
+   126                                                   # Start backward [-1]=> last entry
+   127                                           
+   128         1          2.0      2.0      0.0          if self.net_type == 'regression':
+   129                                                       d_act = self.act_funcs[-1].deriv(zs[-1])
+   130                                                       delta = self.d_cost(outputs[-1], y) * d_act
+   131         1          1.0      1.0      0.0          elif self.net_type == 'classifier':
+   132         1          7.0      7.0      0.0              delta = outputs[-1] - y
+   133                                           
+   134         1         70.0     70.0      0.1          grad_b[-1] = np.mean(delta, axis = 0)
+   135         1          1.0      1.0      0.0          if len(outputs) > 1:
+   136         1        168.0    168.0      0.3              grad_w[-1] = np.dot(delta.T, outputs[-2]) * 1/n_sets
+   137                                                   else:
+   138                                                       grad_w[-1] = np.dot(delta.T, x) * 1/n_sets
+   139                                           
+   140         2         11.0      5.5      0.0          for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,0 
+   141         1       8478.0   8478.0     17.4              d_act = self.act_funcs[l].deriv(zs[l])
+   142         1        533.0    533.0      1.1              delta = np.einsum('...ij,...i->...j',self.weights[l+1], delta) * d_act
+   143                                                       # delta = np.mean(np.einsum('...ij,...i->...j',self.weights[l+1], delta) * d_act, axis = 0)
+   144         1        198.0    198.0      0.4              grad_b[l] = np.mean(delta, axis = 0)
+   145                                           
+   146         1          2.0      2.0      0.0              if l > 0:
+   147                                                           grad_w[l] = np.dot(delta.T, outputs[l-1]) * 1/n_sets
+   148                                                       else:
+   149         1      18296.0  18296.0     37.6                  grad_w[l] = np.dot(delta.T, x) * 1/n_sets
+   150                                           
+   151         1          1.0      1.0      0.0          return (grad_b, grad_w)
