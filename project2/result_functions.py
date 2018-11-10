@@ -1,5 +1,7 @@
 import pandas as pd
 import os
+from neuralnet import NeuralNet
+import numpy as np 
 
 def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_test,
         eta_values = None,
@@ -68,21 +70,25 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
     if n_hidden_values is None:
         n_hidden_values = [5, 10, 20, 50, 100]
 
+
+    # for time-keeping
+    tot_count = max_epochs*len(eta_values) * np.sum(n_hidden_values) * n_batches
+    current = 1
+    if verbose:
+        start = time.time()
+
     for eta in eta_values:
         for n_hidden in n_hidden_values:
             
             layer_sizes = [input_train.shape[1], n_hidden, target_train.shape[1]]
 
             net = NeuralNet(layer_sizes, 
-                            net_type = 'classifier'
-                            act_func = [hidden_act_func, 'softmax'], )
+                            net_type = 'classifier',
+                            act_func = [hidden_act_func, 'softmax'] )
 
             tot = max_epochs * n_batches
             accuracy = []
-            current = len(accuracy) + 1
 
-            if verbose:
-                start = time.time()
 
             for j in range(max_epochs):
                 b = batches(input_train, target_train, 
@@ -101,10 +107,10 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
                                 accuracy[-1] if len(accuracy) else 0))
                             now = time.time() 
                             print('Time estimate: {:.0f} seconds left'.format(
-                                (now - start)/current * (tot-current)))
+                                (now - start)/current * (tot_count-current)))
                     net.update_batch_vectorized(x, y, eta)
 
-                    current += 1
+                    current += n_hidden
 
                 acc = net.accuracy(input_test, target_test)
                 accuracy.append(acc)
@@ -129,4 +135,4 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
         import glob
         fname = outputdir + 'mb_sgd{}.pickle'
         n_files = len(glob.glob(fname.format('*')))
-        df.to_pickle('mb_sgd{}.pickle'.format(n_files))
+        df.to_pickle(fname.format(n_files))
