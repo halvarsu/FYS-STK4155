@@ -7,6 +7,7 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
         eta_values = None,
         n_hidden_values = None,
         outputdir = 'output/',
+        file_name_append = '',
         save_df = True,
         verbose = True, 
         **kwargs
@@ -35,7 +36,9 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
     **kwargs 
         used to update parameters containing the following defaults:
         params = { 'n_batches':10000, 'min_epochs':40, 'max_epochs':100,
-        'tol':1e-10, 'hidden_act_func':'sigmoid'}
+        'tol':1e-10, 'hidden_act_func':'sigmoid',
+        'output_act_func':'softmax', 'net_type':'classifier',
+        'earlystopping':True}
 
     Returns
     -------
@@ -52,15 +55,23 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
     from IPython.display import clear_output
     from project2_tools import batches
 
+
     accuracies = []
     params = { 'n_batches':10000, 'min_epochs':40, 'max_epochs':100,
-            'tol':1e-10, 'hidden_act_func':'sigmoid'}
+            'tol':1e-10, 'hidden_act_func':'sigmoid',
+            'output_act_func':'softmax', 'net_type':'classifier',
+            'earlystopping':True}
+
     params.update(kwargs)
-    tol = params.pop('tol')
-    n_batches = params.pop('n_batches')
-    min_epochs = params.pop('min_epochs')
-    max_epochs = params.pop('max_epochs')
     hidden_act_func = params.pop('hidden_act_func')
+    output_act_func = params.pop('output_act_func')
+    earlystopping   = params.pop('earlystopping')
+    min_epochs      = params.pop('min_epochs')
+    max_epochs      = params.pop('max_epochs')
+    n_batches       = params.pop('n_batches')
+    net_type        = params.pop('net_type')
+    tol             = params.pop('tol')
+
     if params:
         raise TypeError("unrecognized kwarg(s): {}".format(
         ", ".join(params.keys())))
@@ -83,8 +94,8 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
             layer_sizes = [input_train.shape[1], n_hidden, target_train.shape[1]]
 
             net = NeuralNet(layer_sizes, 
-                            net_type = 'classifier',
-                            act_func = [hidden_act_func, 'softmax'] )
+                            net_type = net_type,
+                            act_func = [hidden_act_func, output_act_func] )
 
             tot = max_epochs * n_batches
             accuracy = []
@@ -108,6 +119,8 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
                             now = time.time() 
                             print('Time estimate: {:.0f} seconds left'.format(
                                 (now - start)/current * (tot_count-current)))
+                            print(current)
+                            print(tot_count - current)
                     net.update_batch_vectorized(x, y, eta)
 
                     current += n_hidden
@@ -115,13 +128,14 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
                 acc = net.accuracy(input_test, target_test)
                 accuracy.append(acc)
 
-                if len(accuracy) > min_epochs:
+                if len(accuracy) > min_epochs and earlystopping:
                     # decreasing accuracy
                     cond1 = np.all(accuracy[-1] < np.array(accuracy[-5:-1]))  
                     # stabilized accuracy
                     cond2 = np.abs(accuracy[-1] - accuracy[-2])/accuracy[-1] < tol 
                     if cond1 or cond2:
-                        print('earlystop at epoch number {}'.format(len(accuracy)))
+                        print('earlystop at epoch number {}, cond {}'.format(len(accuracy), 
+                                                                    1 if cond1 else 2))
                         break
 
             accuracies.append({'eta':eta,'nhidden':layer_sizes[1], 'accuracy':accuracy, 
@@ -133,6 +147,6 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
     
     if save_df:
         import glob
-        fname = outputdir + 'mb_sgd{}.pickle'
+        fname = outputdir + 'mb_sgd' + file_name_append + '_' + '{}.pickle'
         n_files = len(glob.glob(fname.format('*')))
         df.to_pickle(fname.format(n_files))
