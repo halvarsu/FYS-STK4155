@@ -323,10 +323,10 @@ class ActivationFunction(FunctionBase):
         return 0
 
     def d_softsign(self, x):
-        return activation(x)**2
+        return self.softsign(x)**2
 
     def d_tanh(self, x):
-        return 1 - activation(x)**2
+        return 1 - self.tanh(x)**2
 
     def d_relu(self, x):
         return self._alpha * (x > 0)
