@@ -322,3 +322,32 @@ def add_outer_products(x,y,out,weight=1):
         for j in range(out.shape[1]):
             for k in range(x.shape[0]):
                 out[i,j] += x[k,i] * y[k,j] * weight
+
+
+def get_data_sigmoid(dfs_sigmoid):
+    """sigmoid data isa bit fucked up, so some massage is needed"""
+    data = []
+    x = []
+    y = []
+    for df in dfs_sigmoid:
+        data.append(df['final_accuracy'].values)
+        x.append(np.log10(df['eta'].values))
+        y.append(df['nhidden'].values)
+        # print(df.nhidden.values.reshape(nx,ny))
+    x = np.concatenate(x)
+    y = np.concatenate(y)
+    data = np.concatenate(data)
+
+    indx = np.lexsort([y,x])
+    x = x[indx]
+    y = y[indx]
+    data = data[indx]
+
+    eta_values = np.linspace(-2,2,9)
+    nhidden_values = np.unique(np.concatenate([d['nhidden'] for d in dfs_sigmoid]))
+    nhidden_values
+
+    nx = eta_values.size
+    ny = nhidden_values.size
+    data = data.reshape(nx,ny)
+    return data,x,y
