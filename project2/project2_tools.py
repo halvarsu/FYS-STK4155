@@ -28,7 +28,7 @@ def ising_energies1D(spins, J = -1):
     E = np.sum(-1*spins*np.roll(spins,1, axis = 1), axis = 1)
     return E
 
-def gen_1Ddata(n_spins, n_sets, ret_pairs = True, fit_intercept = True, **kwargs):
+def gen_1Ddata(n_spins, n_sets, ret_pairs = True, fit_intercept = False, **kwargs):
     """
     Generates data consisting of spin configurations their 1D ising
     energies. 
