@@ -28,7 +28,7 @@ def ising_energies1D(spins, J = -1):
     E = np.sum(-1*spins*np.roll(spins,1, axis = 1), axis = 1)
     return E
 
-def gen_1Ddata(n_spins, n_sets, ret_pairs = True, **kwargs):
+def gen_1Ddata(n_spins, n_sets, ret_pairs = True, fit_intercept = True, **kwargs):
     """
     Generates data consisting of spin configurations their 1D ising
     energies. 
@@ -57,11 +57,14 @@ def gen_1Ddata(n_spins, n_sets, ret_pairs = True, **kwargs):
     spins = np.random.choice(np.array([-1,1],dtype=np.int8), 
                              size = (n_sets, n_spins))
     energies = ising_energies1D(spins, **kwargs)
-
     if ret_pairs:
         pairs = np.einsum('...i,...j->...ij', spins, spins).reshape(n_sets,-1)
+        if fit_intercept:
+            pairs = np.concatenate((np.ones((n_sets,1)),pairs),axis=1)
         return pairs, energies
     else:
+        if fit_intercept:
+            spins = np.concatenate((np.ones((n_sets,1)),spins),axis=1)
         return spins, energies
 
 def to_onehot(classes):
