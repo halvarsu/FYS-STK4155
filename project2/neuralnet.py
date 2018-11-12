@@ -42,6 +42,7 @@ class NeuralNet(object):
         self.num_layers = len(sizes) 
         self.biases  = [0.1 * np.random.randn(y) for y in sizes[1:]]
         self.weights = [0.1 * np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.lmbd = lmbd
 
         if type(act_func) == str:
             act_func = [act_func]
@@ -49,6 +50,10 @@ class NeuralNet(object):
         if len(act_func) == 1:
             a = ActivationFunction(act_func[0])
             self.act_funcs = [a for _ in sizes[:-1]]
+        if len(act_func) == 2:
+            hidden = ActivationFunction(act_func[0])
+            output = ActivationFunction(act_func[1])
+            self.act_funcs = [hidden for _ in sizes[:-2]] + [output]
         elif len(act_func) == self.num_layers - 1:
             self.act_funcs = [ActivationFunction(s) for s in act_func]
         else:
@@ -106,7 +111,11 @@ class NeuralNet(object):
             if y_shape[0] != x_shape[0]:
                 raise ValueError('x and y must have same first dimension with vector_input')
             if self.sizes[-1] == 1:
-                if len(y_shape) != 1:
+                if len(y_shape) == 1:
+                    pass
+                elif y_shape[1] == 1:
+                    pass
+                else:
                     raise ValueError('y must have same last dimension as output layer with vector_input')
             else:
                 if y_shape[-1] != self.sizes[-1]:
@@ -176,8 +185,8 @@ class NeuralNet(object):
             grad_w =  [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
             grad_b =  [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
 
-        self.weights = [w-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
-        self.biases = [b-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
+        self.weights = [w*(1-self.lmbd)-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
+        self.biases = [w*(1-self.lmbd)-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
 
     def feed_forward_vectorized(self, inputs):
         # tensordot and matmul ~ equal time
@@ -221,7 +230,7 @@ class NeuralNet(object):
         return w @ out + b
     
     def d_cost(self, out, y):
-        return(out - y)
+        return (out - y)
 
     def accuracy(self, test_inputs, test_targets):
         """
@@ -235,6 +244,18 @@ class NeuralNet(object):
         target = from_onehot(test_targets)
         accuracy = np.mean(mle == target)
         return accuracy
+
+    def r2_score(self, test_inputs, test_targets):
+        """
+        Returns r2 of net for given test data set.
+        """
+        from project2_tools import from_onehot
+
+        _, outputs = self.feed_forward_vectorized(test_inputs)
+
+        test_mean = np.mean(test_targets)
+        r2 = 1 - np.sum((test_targets - outputs[-1])**2)/np.sum((test_targets - test_mean)**2)
+        return r2
     
 
 class FunctionBase:
