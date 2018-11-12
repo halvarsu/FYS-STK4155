@@ -3,7 +3,7 @@ import os
 from neuralnet import NeuralNet
 import numpy as np 
 
-def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_test,
+def run_minibatch_sgd(input_train, target_train, input_test, target_test,
         eta_values = None,
         n_hidden_values = None,
         outputdir = 'output/',
@@ -12,7 +12,8 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
         verbose = True, 
         **kwargs
         ):
-    """Runs minibatch stochastic gradient descent
+    """Runs minibatch stochastic gradient descent with gridsearch over
+    learning rate eta and hidden layer sizes n_hidden. n_hidden may
     
     Parameters
     ----------
@@ -21,7 +22,7 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
     eta_values : list
         eta values to loop over. Default [0.0001, 0.001, 0.01, 0.1]
 
-    n_hidden_values : list
+    n_hidden_values : list of ints or lists of ints
         hidden layer sizes to loop over. Default [5, 10, 20, 50, 100]
 
     save_df : bool
@@ -90,8 +91,10 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
 
     for eta in eta_values:
         for n_hidden in n_hidden_values:
-            
-            layer_sizes = [input_train.shape[1], n_hidden, target_train.shape[1]]
+            if type(n_hidden) is list:
+                layer_sizes = [input_train.shape[1]] + n_hidden + [target_train.shape[1]]
+            else:
+                layer_sizes = [input_train.shape[1] , n_hidden , target_train.shape[1]]
 
             net = NeuralNet(layer_sizes, 
                             net_type = net_type,
@@ -102,6 +105,12 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
 
 
             for j in range(max_epochs):
+                if net_type =='classifier':
+                    acc = net.accuracy(input_test, target_test)
+                else:
+                    acc = net.r2_score(input_test, target_test)
+                accuracy.append(acc)
+
                 b = batches(input_train, target_train, 
                         n_batches = n_batches, zipped = False)
 
@@ -119,14 +128,10 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
                             now = time.time() 
                             print('Time estimate: {:.0f} seconds left'.format(
                                 (now - start)/current * (tot_count-current)))
-                            print(current)
-                            print(tot_count - current)
                     net.update_batch_vectorized(x, y, eta)
 
-                    current += n_hidden
+                    current += np.sum(n_hidden)
 
-                acc = net.accuracy(input_test, target_test)
-                accuracy.append(acc)
 
                 if len(accuracy) > min_epochs and earlystopping:
                     # decreasing accuracy
@@ -149,4 +154,18 @@ def run_minibatch_sgd_one_hidden(input_train, target_train, input_test, target_t
         import glob
         fname = outputdir + 'mb_sgd' + file_name_append + '_' + '{}.pickle'
         n_files = len(glob.glob(fname.format('*')))
-        df.to_pickle(fname.format(n_files))
+        fname = fname.format(n_files)
+        print('saving file {}'.format(fname))
+        df.to_pickle(fname)
+    return df
+
+def amend_data_file(fname):
+    """Previous runs did not add accuracy before first epoch, so this
+    function adds that manually. """
+
+    df = pd.read_pickle(fname)
+
+
+
+
+
