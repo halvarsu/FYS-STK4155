@@ -351,3 +351,16 @@ def get_data_sigmoid(dfs_sigmoid):
     ny = nhidden_values.size
     data = data.reshape(nx,ny)
     return data,x,y
+
+
+
+def eta_nhidden_df(df):
+    """
+    basically converts dataframe to labeled array, with eta and nhidden
+    along axes.
+    """
+    temp = df[['nhidden','eta','max_accuracy']]
+    temp = temp.set_index(['nhidden','eta'],drop=True).unstack()
+    temp.columns = temp.columns.droplevel(level=0)
+    temp.columns = np.log10(temp.columns)
+    return temp
