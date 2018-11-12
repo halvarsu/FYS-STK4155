@@ -42,6 +42,7 @@ class NeuralNet(object):
         self.num_layers = len(sizes) 
         self.biases  = [0.1 * np.random.randn(y) for y in sizes[1:]]
         self.weights = [0.1 * np.random.randn(y, x) for x, y in zip(sizes[:-1], sizes[1:])]
+        self.lmbd = lmbd
 
         if type(act_func) == str:
             act_func = [act_func]
@@ -184,8 +185,8 @@ class NeuralNet(object):
             grad_w =  [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
             grad_b =  [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
 
-        self.weights = [w-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
-        self.biases = [b-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
+        self.weights = [w*(1-self.lmbd)-(eta/n)*nw for w,nw in zip(self.weights,grad_w)]
+        self.biases = [w*(1-self.lmbd)-(eta/n)*nb for b,nb in zip(self.biases,grad_b)]
 
     def feed_forward_vectorized(self, inputs):
         # tensordot and matmul ~ equal time
@@ -229,7 +230,7 @@ class NeuralNet(object):
         return w @ out + b
     
     def d_cost(self, out, y):
-        return(out - y)
+        return (out - y)
 
     def accuracy(self, test_inputs, test_targets):
         """
