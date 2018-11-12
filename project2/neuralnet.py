@@ -5,7 +5,7 @@ import random
 class NeuralNet(object):
     
     def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 1,
-            net_type = 'regression'):
+            net_type = 'regression', lmbd = 0):
         """
         Neural network, where sizes is a list where the length of the list 
         will be the number of layers including the input layer, with each
@@ -14,7 +14,14 @@ class NeuralNet(object):
         act_func : str, or list of str
 
         net_type : str
-            must be either linear og logistic
+            must be either regression or classifier
+
+        alpha : float
+            saturation for elu/gradient of relu activation functions
+
+        lmbd : float
+            regularization parameter
+            
 
         Available activation functions:
             - sigmoid
