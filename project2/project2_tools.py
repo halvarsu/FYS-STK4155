@@ -1,5 +1,6 @@
 import numpy as np
 from numba import jit, njit
+from numba.decorators import autojit
 import pickle
 
 def read_t(t,root="./data/IsingData/", dtype = np.int8):
@@ -311,12 +312,14 @@ def calc_sum3(a,b,c, weight):
                 c[i,j] += a[k,i] * b[k,j] * weight
 
 
-@njit
+@njit(cache = True)
 def add_outer_products(x,y,out,weight=1):
     """
     Calculates the outer product elementwise over the second axis in both x
     and y, and adds to out, weighted by weight. In einstein notation,
     out_ij += x_ki * y_kj * weight.
+
+    DEPRECATED: Use np.dot instead (LOL)
     """
     for i in range(out.shape[0]):
         for j in range(out.shape[1]):

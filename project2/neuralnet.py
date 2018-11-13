@@ -1,6 +1,11 @@
 import numpy as np
 import random
 
+# class NeuralNetClassification(NeuralNet):
+
+#     def __init__(self, sizes=[], act_func = 'sigmoid', alpha = 1):
+#         super().__init__(sizes, act_func, alpha, net_type = 'classification')
+
 
 class NeuralNet(object):
     
@@ -59,7 +64,6 @@ class NeuralNet(object):
     
     def backpropagate(self, x, y):
         if np.size(y) != self.sizes[-1]:
-            # print(np.size(y) , self.sizes[-1])
             raise ValueError('target must have same size as output layer')
         grad_b = [np.zeros(b.shape) for b in self.biases]
         grad_w = [np.zeros(w.shape) for w in self.weights]
@@ -129,9 +133,9 @@ class NeuralNet(object):
 
         grad_b[-1] = np.mean(delta, axis = 0)
         if len(outputs) > 1:
-            add_outer_products(delta, outputs[-2], out = grad_w[-1], weight = 1/n_sets)
+            grad_w[-1] = np.dot(delta.T, outputs[-2]) * 1/n_sets
         else:
-            add_outer_products(delta, x, out = grad_w[-1], weight = 1/n_sets)
+            grad_w[-1] = np.dot(delta.T, x) * 1/n_sets
 
         for l in reversed(range(0, self.num_layers-2)): # l = L-1,...,0 
             d_act = self.act_funcs[l].deriv(zs[l])
@@ -140,9 +144,9 @@ class NeuralNet(object):
             grad_b[l] = np.mean(delta, axis = 0)
 
             if l > 0:
-                add_outer_products(delta, outputs[l-1], out = grad_w[l], weight = 1/n_sets)
+                grad_w[l] = np.dot(delta.T, outputs[l-1]) * 1/n_sets
             else:
-                add_outer_products(delta, x, out = grad_w[l], weight = 1/n_sets)
+                grad_w[l] = np.dot(delta.T, x) * 1/n_sets
 
         return (grad_b, grad_w)    
     
@@ -165,7 +169,6 @@ class NeuralNet(object):
         for x,y in batch:
             d_grad_b, d_grad_w = self.backpropagate(x,y)
 
-            # print([eta * np.mean(dw/w) for w,dw in zip(self.weights, d_grad_w)])
             grad_w =  [nw+dnw for nw,dnw in zip(grad_w,d_grad_w)]
             grad_b =  [nb+dnb for nb,dnb in zip(grad_b,d_grad_b)]
 
@@ -174,13 +177,16 @@ class NeuralNet(object):
 
     def feed_forward_vectorized(self, inputs):
         # tensordot and matmul ~ equal time
+
         # z = np.zeros((inputs.shape[0], self.weights[0].shape[0]))
         # for i,data in enumerate(inputs):
         #     z[i] = self.weights[0] @ data + self.biases[0]
         #     p
         # z2 = np.matmul(self.weights[0], inputs.T).T + self.biases[0]
         # z3 = np.einsum('...ij,...j->...i',self.weights[0] , inputs) + self.biases[0]
-        z = np.tensordot(inputs, self.weights[0], axes = [1,1]) + self.biases[0]
+        # z = np.tensordot(inputs, self.weights[0], axes = [1,1]) + self.biases[0]
+        # LOL why not use dot, such speed, much simple
+        z = np.dot(inputs, self.weights[0].T) + self.biases[0]
 
         out = self.act_funcs[0](z)
         zs = [z]        # List of weighted z's
