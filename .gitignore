@@ -1,3 +1,4 @@
 MachineLearning/
 .ipynb_checkpoints
 __pycache__
+.ropeproject
