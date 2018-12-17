@@ -35,7 +35,7 @@ class DiffusionNN(object):
         self.num_layers = 0
         self.initialize(Nx, x_bounds, Nt, t_bounds)
         self.ic = initial_condition
-        self.verbose = True
+        self.verbose = verbose
         self.is_run = False
 
     def initialize(self, Nx = 20, x_bounds = [0, 1], 
